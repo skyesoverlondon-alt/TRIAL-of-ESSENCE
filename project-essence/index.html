@@ -806,7 +806,7 @@
         
         <div class="menu-header">
             <div class="menu-logo">
-                <h1>ESSENCE FUCKING CROWN</h1>
+                <h1>ESSENCE CROWN</h1>
                 <h2>SHARD WARS</h2>
             </div>
             <div class="menu-controls">
@@ -2225,5 +2225,26 @@
     
     <script src="cards.js"></script>
     <script src="main.js"></script>
+    <script>
+  // Auto-skip the stuck tutorial / training popup
+  window.addEventListener("load", function () {
+    // Look for any button/link that says "Got it"
+    var clickable = Array.from(
+      document.querySelectorAll("button, a, [role='button']")
+    );
+    var gotIt = clickable.find(function (el) {
+      return el.textContent && el.textContent.trim().toLowerCase().startsWith("got it");
+    });
+
+    if (gotIt) {
+      try {
+        gotIt.click(); // close the overlay immediately
+      } catch (e) {
+        console.warn("Could not auto-click tutorial Got it button", e);
+      }
+    }
+  });
+</script>
+
 </body>
 </html>
