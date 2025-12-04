@@ -2058,7 +2058,6 @@ const MainMenu = {
     
     init() {
         this.updateProfile();
-        this.initSettings();
         document.getElementById('main-menu').classList.remove('hidden');
     },
     
@@ -2088,9 +2087,6 @@ const MainMenu = {
                 break;
             case 'collection':
                 Collection.show();
-                break;
-            case 'settings':
-                this.showSettings();
                 break;
             case 'shop':
                 this.showShop();
@@ -2122,18 +2118,6 @@ const MainMenu = {
         this.playerData.shards += amount;
         localStorage.setItem('ec-player-data', JSON.stringify(this.playerData));
         this.updateProfile();
-    },
-    
-    // ========== SETTINGS FROM MENU ==========
-    showSettings() {
-        document.getElementById('main-menu').classList.add('hidden');
-        document.getElementById('menu-settings-overlay').classList.remove('hidden');
-    },
-    
-    hideSettings() {
-        document.getElementById('menu-settings-overlay').classList.add('hidden');
-        document.getElementById('main-menu').classList.remove('hidden');
-        this.currentScreen = 'main';
     },
     
     // ========== SHARD SHOP FROM MENU ==========
