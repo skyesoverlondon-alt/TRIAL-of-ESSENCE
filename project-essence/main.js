@@ -2133,6 +2133,88 @@ const MainMenu = {
         this.currentScreen = 'main';
     },
     
+    // ========== SETTINGS TOGGLES ==========
+    settings: {
+        music: true,
+        sfx: true,
+        volume: 60,
+        animations: true,
+        reduceMotion: false,
+        lowFx: false,
+        textSize: 'medium',
+        colorblind: 'off',
+        contrast: false
+    },
+    
+    initSettings() {
+        const saved = localStorage.getItem('ec-settings');
+        if (saved) {
+            try {
+                Object.assign(this.settings, JSON.parse(saved));
+            } catch (e) {}
+        }
+        this.applySettings();
+    },
+    
+    saveSettings() {
+        localStorage.setItem('ec-settings', JSON.stringify(this.settings));
+    },
+    
+    applySettings() {
+        document.getElementById('menu-opt-music')?.classList.toggle('active', this.settings.music);
+        document.getElementById('menu-opt-sfx')?.classList.toggle('active', this.settings.sfx);
+        document.getElementById('menu-opt-animations')?.classList.toggle('active', this.settings.animations);
+        document.getElementById('menu-opt-reduce-motion')?.classList.toggle('active', this.settings.reduceMotion);
+        document.getElementById('menu-opt-low-fx')?.classList.toggle('active', this.settings.lowFx);
+        document.getElementById('menu-opt-contrast')?.classList.toggle('active', this.settings.contrast);
+        
+        const volumeSlider = document.getElementById('menu-opt-volume');
+        if (volumeSlider) volumeSlider.value = this.settings.volume;
+        
+        const textSizeSelect = document.getElementById('menu-opt-text-size');
+        if (textSizeSelect) textSizeSelect.value = this.settings.textSize;
+        
+        const colorblindSelect = document.getElementById('menu-opt-colorblind');
+        if (colorblindSelect) colorblindSelect.value = this.settings.colorblind;
+        
+        if (typeof GAME_SETTINGS !== 'undefined') {
+            GAME_SETTINGS.musicEnabled = this.settings.music;
+            GAME_SETTINGS.sfxEnabled = this.settings.sfx;
+            GAME_SETTINGS.enableAnimations = this.settings.animations;
+            GAME_SETTINGS.musicVolume = this.settings.volume / 100;
+            GAME_SETTINGS.sfxVolume = this.settings.volume / 100;
+        }
+        
+        document.body.classList.toggle('reduce-motion', this.settings.reduceMotion);
+        document.body.classList.toggle('low-fx', this.settings.lowFx);
+        document.body.classList.toggle('high-contrast', this.settings.contrast);
+        document.body.dataset.textSize = this.settings.textSize;
+        document.body.dataset.colorblind = this.settings.colorblind;
+    },
+    
+    toggleSetting(setting) {
+        this.settings[setting] = !this.settings[setting];
+        this.applySettings();
+        this.saveSettings();
+    },
+    
+    setVolume(value) {
+        this.settings.volume = parseInt(value);
+        this.applySettings();
+        this.saveSettings();
+    },
+    
+    setTextSize(value) {
+        this.settings.textSize = value;
+        this.applySettings();
+        this.saveSettings();
+    },
+    
+    setColorblind(value) {
+        this.settings.colorblind = value;
+        this.applySettings();
+        this.saveSettings();
+    }
 };
 
 const AIManager = {
