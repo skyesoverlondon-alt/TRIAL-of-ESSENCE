@@ -565,7 +565,10 @@
         <div id="tutorial-hint" class="tutorial-hint hidden">
             <div class="hint-content">
                 <div class="hint-text" id="hint-text"></div>
-                <button class="hint-btn" onclick="TutorialBattle.nextHint()">Got it →</button>
+                <div class="hint-buttons">
+                    <button class="hint-btn" onclick="TutorialBattle.nextHint()">Got it →</button>
+                    <button class="hint-btn hint-btn-skip" onclick="skipLearnToPlay()">Skip Learn to Play</button>
+                </div>
             </div>
         </div>
 
@@ -2283,5 +2286,33 @@
 </script>
 
 
+
+    <script>
+        // Skip Learn to Play and any blocking tutorial overlays
+        function skipLearnToPlay() {
+            // Hide the small tutorial hint overlay
+            var hint = document.getElementById('tutorial-hint');
+            if (hint) {
+                hint.classList.add('hidden');
+                hint.style.display = 'none';
+            }
+
+            // Hide the main Learn to Play overlay if present
+            var learnOverlay = document.getElementById('learn-overlay');
+            if (learnOverlay) {
+                learnOverlay.classList.add('hidden');
+                learnOverlay.style.display = 'none';
+            }
+
+            // Hide pause overlay if it's part of the Learn to Play flow
+            var pauseOverlay = document.getElementById('pause-overlay');
+            if (pauseOverlay) {
+                pauseOverlay.classList.add('hidden');
+                pauseOverlay.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
+
+
