@@ -12085,10 +12085,16 @@ const TutorialBattle = {
     hideHint() {
         document.getElementById('tutorial-hint').classList.add('hidden');
     },
-    
+
+    skipTutorial() {
+        this.isTutorialActive = false;
+        this.hideHint();
+        Game.state.isTutorial = false;
+    },
+
     triggerHint(trigger) {
         if (!this.isTutorialActive) return;
-        
+
         const step = this.tutorialSteps.find(s => s.trigger === trigger);
         if (step) {
             this.showHint(this.tutorialSteps.indexOf(step));
