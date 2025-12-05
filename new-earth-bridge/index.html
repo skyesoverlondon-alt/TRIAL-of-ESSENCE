@@ -7,76 +7,20 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main id="app">
-    <section id="loading-screen" class="panel">
-      <div class="panel-body">
-        <h1>Essence Crown – New Earth Command Bridge</h1>
-        <p class="lead">A minimal client powered by the core engine and card data.</p>
-        <button id="start-button" class="primary">Start Solo Duel</button>
-      </div>
+  <main id="shell">
+    <section id="loading-screen" class="start-panel">
+      <h1>Essence Crown – New Earth Command Bridge</h1>
+      <p>Start a solo duel to enter the New Earth Command Bridge board.</p>
+      <button id="start-button">Start Solo Duel</button>
     </section>
 
-    <section id="board" class="hidden">
-      <header class="top-bar">
-        <div class="left">
-          <span class="tag" id="turn-indicator">Turn 1 – Dawn</span>
-          <span class="tag" id="active-player">Active: Player 1</span>
-        </div>
-        <div class="right">
-          <button id="draw-button">Draw</button>
-          <button id="next-phase">Next Phase / Turn</button>
-          <button id="reset-button" class="danger">Reset / Concede</button>
-        </div>
-      </header>
-
-      <section class="status-row">
-        <div class="status-card">
-          <h3>Your Status</h3>
-          <div class="status-grid">
-            <div>
-              <label>Essence</label>
-              <span id="essence-value">0</span>
-            </div>
-            <div>
-              <label>KL</label>
-              <span id="kl-value">0</span>
-            </div>
-            <div>
-              <label>God Charges</label>
-              <span id="god-charges">0</span>
-            </div>
-            <div>
-              <label>Deck</label>
-              <span id="deck-count">0 cards</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="status-card">
-          <h3>Phase</h3>
-          <p id="phase-label" class="phase">Dawn</p>
-        </div>
-      </section>
-
-      <section class="hand-field">
-        <div class="panel hand">
-          <h3>Hand</h3>
-          <div id="hand-cards" class="card-row"></div>
-        </div>
-        <div class="panel field">
-          <h3>Field</h3>
-          <div id="field-cards" class="card-row"></div>
-        </div>
-      </section>
-
-      <section class="log-panel">
-        <h3>Combat Log</h3>
-        <div id="log" class="log"></div>
-      </section>
+    <section id="board-screen" class="hidden">
+      <h1>Essence Crown: New Earth</h1>
+      <div id="subtitle">KL • Essence • God Charges • Veiled Deck • Shards • Domains</div>
+      <div id="app"></div>
     </section>
   </main>
 
-  <script src="../project-essence/cards.js"></script>
   <script type="module" src="main.js"></script>
 </body>
 </html>
