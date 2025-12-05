@@ -206,6 +206,15 @@ main#shell {
   outline: none;
 }
 
+.start-panel .secondary-start {
+  margin-left: 8px;
+  background: radial-gradient(circle at top left, #0ea5e9, #312e81);
+}
+
+.start-panel .secondary-start:hover:not(:disabled) {
+  background: radial-gradient(circle at top left, #22d3ee, #4338ca);
+}
+
 .start-panel button:hover {
   transform: translateY(-1px);
   box-shadow:

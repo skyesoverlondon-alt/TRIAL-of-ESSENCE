@@ -25,6 +25,7 @@
       <h1>Essence Crown – New Earth Command Bridge</h1>
       <p>Start a solo duel to enter the New Earth Command Bridge board.</p>
       <button id="start-button">Start Solo Duel</button>
+      <button id="play-tutorial-btn" class="secondary-start">Play Tutorial</button>
     </section>
 
     <section id="board-screen" class="hidden">
@@ -37,5 +38,15 @@
   <div id="card-detail-overlay" class="card-detail-hidden"></div>
 
   <script type="module" src="main.js"></script>
+
+  <div id="tutorial-overlay" class="tutorial-hidden">
+    <div class="tutorial-panel">
+      <div id="tutorial-text"></div>
+      <div class="tutorial-controls">
+        <button id="tutorial-next-btn">Next</button>
+        <button id="tutorial-exit-btn">Exit Tutorial</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
