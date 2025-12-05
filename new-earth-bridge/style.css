@@ -162,6 +162,8 @@ main#shell {
   max-width: 1400px;
   margin: 0 auto;
   padding: 20px 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .start-panel {
