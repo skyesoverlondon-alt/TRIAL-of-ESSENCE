@@ -71,6 +71,8 @@ function bindShellEvents() {
   const startGame = () => {
     ui.loading?.classList.add("hidden");
     ui.board?.classList.remove("hidden");
+    campaignState.mode = "freeplay";
+    campaignState.activeNode = null;
     resetGame();
   };
 
