@@ -15,17 +15,12 @@ function cacheAppNode() {
 }
 
 function bindShellEvents() {
-  function enterBoard() {
-    ui.loading?.classList.add("hidden");
-    ui.board?.classList.remove("hidden");
-    resetGame();
-  }
-
   if (ui.start) {
-    ui.start.addEventListener("click", enterBoard);
-  } else {
-    // Fallback: if the start button is missing, enter the board immediately
-    enterBoard();
+    ui.start.addEventListener("click", () => {
+      ui.loading?.classList.add("hidden");
+      ui.board?.classList.remove("hidden");
+      resetGame();
+    });
   }
 }
 
@@ -1146,9 +1141,7 @@ function render() {
   ui.app.appendChild(logBox);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  cacheAppNode();
-  bindShellEvents();
-  logLine("New game started.");
-  render();
-});
+cacheAppNode();
+bindShellEvents();
+logLine("New game started.");
+render();
