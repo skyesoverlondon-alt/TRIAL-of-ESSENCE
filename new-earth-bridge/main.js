@@ -10,6 +10,69 @@ const ui = {
   start: document.getElementById("start-button"),
 };
 
+let isTutorialMode = false;
+let tutorialStepIndex = 0;
+
+const tutorialScript = [
+  {
+    id: "intro",
+    trigger: "onTutorialStart",
+    message:
+      "Welcome to Essence Crown: Shard Wars. This tutorial will walk you through your first few turns.",
+  },
+  {
+    id: "zones",
+    trigger: "onBoardReady",
+    message:
+      "At the top is your Deity. In front are your Shard lanes. Your hand sits at the bottom. The deck is to the side.",
+  },
+  {
+    id: "turn1_draw",
+    trigger: "onTurnStart",
+    turn: 1,
+    player: "you",
+    message:
+      "Turn 1: The game draws a card for you. Look at your Shards. Play a Shard into a lane to begin generating Essence.",
+  },
+  {
+    id: "turn1_play_shard",
+    trigger: "onCardPlayed",
+    condition: "shardFirst",
+    message:
+      "Great. Shards are like your energy sources. On future turns, they’ll fuel your Avatars and Techniques.",
+  },
+  {
+    id: "turn2_start",
+    trigger: "onTurnStart",
+    turn: 2,
+    player: "you",
+    message:
+      "Turn 2: Draw again. Now you should have enough Essence to play an Avatar. Play one into a Shard lane.",
+  },
+  {
+    id: "turn2_attack",
+    trigger: "onCombatAvailable",
+    message:
+      "Once your Avatar is in play and can attack, choose a lane and attack. Damage goes through that lane to enemy Avatars or their Deity.",
+  },
+  {
+    id: "turn3_start",
+    trigger: "onTurnStart",
+    turn: 3,
+    player: "you",
+    message:
+      "Turn 3: You know the basics. Play another card or use a Technique, then attack again. After this turn, the tutorial will end and the game continues normally.",
+  },
+  {
+    id: "outro",
+    trigger: "onAfterTurn",
+    turn: 3,
+    player: "you",
+    message:
+      "You’ve completed the guided tutorial. You can keep playing this game out, or start a normal match from the main screen when you’re ready.",
+  },
+];
+
 function cacheAppNode() {
   ui.app = document.getElementById("app");
 }
@@ -21,6 +84,30 @@ function bindShellEvents() {
       ui.board?.classList.remove("hidden");
       resetGame();
     });
+  }
+
+  initTutorialUI();
+}
+
+function initTutorialUI() {
+  const playTutorialBtn = document.getElementById("play-tutorial-btn");
+  const tutorialNextBtn = document.getElementById("tutorial-next-btn");
+  const tutorialExitBtn = document.getElementById("tutorial-exit-btn");
+
+  if (playTutorialBtn) {
+    playTutorialBtn.addEventListener("click", () => {
+      ui.loading?.classList.add("hidden");
+      ui.board?.classList.remove("hidden");
+      startTutorialGame();
+    });
+  }
+
+  if (tutorialNextBtn) {
+    tutorialNextBtn.addEventListener("click", advanceTutorialStep);
+  }
+
+  if (tutorialExitBtn) {
+    tutorialExitBtn.addEventListener("click", endTutorialMode);
   }
 }
 
@@ -75,7 +162,18 @@ function createFakeDeck(ownerId) {
   return deck;
 }
 
-function createPlayer(id, name, essence, baseKl) {
+function createTutorialDeck(ownerId) {
+  return [
+    createShard(ownerId, 0, 1),
+    createShard(ownerId, 1, 1),
+    createAvatar(ownerId, 0, ownerId === "P1" ? "Solar Initiate" : "Nullblade Acolyte", 2, 2, 2),
+    createShard(ownerId, 2, 1),
+    createAvatar(ownerId, 1, ownerId === "P1" ? "Crownflame Herald" : "Voidmarked Raider", 3, 2, 3),
+    createAvatar(ownerId, 2, ownerId === "P1" ? "Aegis Warden" : "Shroud Stalker", 4, 3, 4),
+  ];
+}
+
+function createPlayer(id, name, essence, baseKl, deckOverride) {
   const deity = createDeity(id, essence, baseKl);
   return {
     id,
@@ -87,7 +185,7 @@ function createPlayer(id, name, essence, baseKl) {
     klCap: MAX_KL,
     godCharges: 0,
     godChargesSpent: 0,
-    veiledDeck: createFakeDeck(id),
+    veiledDeck: deckOverride || createFakeDeck(id),
     hand: [],
     shardRow: [],
     avatarFrontline: [],
@@ -119,6 +217,44 @@ let focusInfo = {
 };
 
 let guidedMode = true;
+
+function showTutorialMessage(message) {
+  const overlay = document.getElementById("tutorial-overlay");
+  const textEl = document.getElementById("tutorial-text");
+  if (!overlay || !textEl) return;
+
+  textEl.textContent = message;
+  overlay.classList.remove("tutorial-hidden");
+}
+
+function hideTutorialMessage() {
+  const overlay = document.getElementById("tutorial-overlay");
+  if (!overlay) return;
+  overlay.classList.add("tutorial-hidden");
+}
+
+function advanceTutorialStep() {
+  hideTutorialMessage();
+}
+
+function endTutorialMode() {
+  isTutorialMode = false;
+  hideTutorialMessage();
+}
+
+function runTutorialTrigger(triggerName, context = {}) {
+  if (!isTutorialMode) return;
+
+  const step = tutorialScript[tutorialStepIndex];
+  if (!step || step.trigger !== triggerName) return;
+
+  if (typeof step.turn === "number" && context.turn !== step.turn) return;
+  if (step.player && context.player !== step.player) return;
+  if (step.condition === "shardFirst" && context.cardType !== "Shard") return;
+
+  showTutorialMessage(step.message);
+  tutorialStepIndex += 1;
+}
 
 function activePlayer() {
   return game.activeIndex === -1 ? null : game.players[game.activeIndex];
@@ -188,6 +324,9 @@ function readyFrontline(player) {
 }
 
 function startNextTurn() {
+  const previousPlayer = game.activeIndex;
+  const previousTurn = game.turnNumber;
+
   if (game.activeIndex === -1) {
     game.activeIndex = 0;
     game.turnNumber = 1;
@@ -235,6 +374,10 @@ function startNextTurn() {
     logLine(opp.name + " has 0 Essence. Game over.");
   }
 
+  if (isTutorialMode && previousPlayer === 0 && previousTurn > 0) {
+    runTutorialTrigger("onAfterTurn", { turn: previousTurn, player: "you" });
+  }
+
   focusInfo = {
     kind: "turn",
     title: "Turn " + game.turnNumber + " — " + p.name,
@@ -257,6 +400,11 @@ function startNextTurn() {
       "God Charges: " + p.godCharges + " / " + MAX_GOD_CHARGES + ".",
     ],
   };
+
+  runTutorialTrigger("onTurnStart", {
+    turn: game.turnNumber,
+    player: game.activeIndex === 0 ? "you" : "opponent",
+  });
 
   render();
 }
@@ -338,6 +486,10 @@ function playCardFromHand(cardId) {
     };
   }
 
+  if (isTutorialMode) {
+    runTutorialTrigger("onCardPlayed", { cardType: card.type });
+  }
+
   render();
 }
 
@@ -364,6 +516,8 @@ function attackWithAll() {
     render();
     return;
   }
+
+  runTutorialTrigger("onCombatAvailable", { player: "you" });
 
   let totalDamage = 0;
   attackers.forEach((a) => {
@@ -411,7 +565,58 @@ function attackWithAll() {
   render();
 }
 
+function dealOpeningHand(player, count) {
+  for (let i = 0; i < count; i++) {
+    drawCard(player);
+  }
+}
+
+function startNewGameWithTutorialDecks() {
+  const playerDeck = createTutorialDeck("P1");
+  const opponentDeck = createTutorialDeck("P2");
+
+  game.players = [
+    createPlayer("P1", "Player One", 23, 3, playerDeck),
+    createPlayer("P2", "AI Opponent", 21, 3, opponentDeck),
+  ];
+  game.activeIndex = -1;
+  game.turnNumber = 0;
+  game.currentPhase = "Ready";
+  game.log = [];
+
+  dealOpeningHand(game.players[0], 3);
+  dealOpeningHand(game.players[1], 2);
+
+  const oppShard = game.players[1].veiledDeck.shift();
+  if (oppShard) {
+    game.players[1].shardRow.push(oppShard);
+    recalcKl(game.players[1]);
+  }
+
+  focusInfo = {
+    kind: "board",
+    title: "Tutorial Ready",
+    lines: [
+      "Scripted decks are loaded. Use “Start Game” to begin Turn 1.",
+      "You’ll see guided steps for the first few turns.",
+    ],
+  };
+  logLine("Tutorial game initialized with scripted decks.");
+  render();
+}
+
+function startTutorialGame() {
+  isTutorialMode = true;
+  tutorialStepIndex = 0;
+  startNewGameWithTutorialDecks();
+  runTutorialTrigger("onTutorialStart");
+  runTutorialTrigger("onBoardReady");
+}
+
 function resetGame() {
+  isTutorialMode = false;
+  tutorialStepIndex = 0;
+  hideTutorialMessage();
   game.players = [
     createPlayer("P1", "Player One", 23, 3),
     createPlayer("P2", "Player Two", 21, 3),
