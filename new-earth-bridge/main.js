@@ -1,5 +1,3 @@
-import { ProfileManager } from "../project-essence/profileManager.js";
-
 const MAX_KL = 31;
 const GOD_THRESHOLD = 13;
 const MAX_GOD_CHARGES = 3;
@@ -216,7 +214,7 @@ function createPlayer(id, name, essence, baseKl) {
     klCap: MAX_KL,
     godCharges: 0,
     godChargesSpent: 0,
-    veiledDeck: deckOverride || createFakeDeck(id),
+    veiledDeck: createFakeDeck(id),
     hand: [],
     shardRow: [],
     avatarFrontline: [],
@@ -1318,7 +1316,5 @@ function render() {
 
 cacheAppNode();
 bindShellEvents();
-renderProfileUI();
-renderCampaignUI();
 logLine("New game started.");
 render();
