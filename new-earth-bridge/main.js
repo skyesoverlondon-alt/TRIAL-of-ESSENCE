@@ -56,13 +56,21 @@ function createAvatar(ownerId, index, name, power, guard, klCost) {
     power,
     guard,
     tapped: false,
+    image: SAMPLE_ART[index % SAMPLE_ART.length],
   };
 }
+
+const SAMPLE_ART = [
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=60",
+  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=60",
+  "https://images.unsplash.com/photo-1517816428104-797678c7cf0d?auto=format&fit=crop&w=600&q=60",
+  "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=600&q=60",
+];
 
 function createFakeDeck(ownerId) {
   const deck = [];
   for (let i = 0; i < 4; i++) {
-    deck.push(createShard(ownerId, i, 1));
+    deck.push({ ...createShard(ownerId, i, 1), image: SAMPLE_ART[(i + 1) % SAMPLE_ART.length] });
   }
   deck.push(createAvatar(ownerId, 0, "Glow Vanguard", 2, 2, 2));
   deck.push(createAvatar(ownerId, 1, "Solar Aegis Knight", 3, 3, 3));
@@ -73,6 +81,64 @@ function createFakeDeck(ownerId) {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
+}
+
+function buildCardView(card, { canPlay = true, onClick } = {}) {
+  const cardEl = document.createElement("div");
+  cardEl.className = "card-frame";
+  if (!canPlay) cardEl.classList.add("card-disabled");
+
+  cardEl.innerHTML = `
+    <div class="card-art-wrapper">
+      <img class="card-art" src="${card.image || SAMPLE_ART[0]}" alt="${card.name}" />
+    </div>
+    <div class="card-overlay">
+      <div class="card-header-row">
+        <span class="card-title">${card.name}</span>
+        <span class="card-cost">${card.klCost ?? card.cost ?? 0}</span>
+      </div>
+      <div class="card-type-row">
+        <span class="card-type">${card.type || ""}</span>
+      </div>
+      <div class="card-stats-row">${card.power !== undefined ? `${card.power} / ${card.guard ?? card.toughness ?? 0}` : ""}</div>
+    </div>
+  `;
+
+  cardEl.addEventListener("mouseenter", () => showDetailOverlay(card));
+  cardEl.addEventListener("mouseleave", hideDetailOverlay);
+  cardEl.addEventListener("click", () => {
+    if (onClick) onClick();
+    showDetailOverlay(card);
+  });
+
+  return cardEl;
+}
+
+function showDetailOverlay(card) {
+  const overlay = document.getElementById("card-detail-overlay");
+  if (!overlay) return;
+  overlay.innerHTML = `
+    <div class="card-detail-content">
+      <div class="card-header-row">
+        <span class="card-title">${card.name}</span>
+        <span class="card-cost">${card.klCost ?? card.cost ?? 0} KL</span>
+      </div>
+      <div class="card-art-wrapper">
+        <img class="card-art" src="${card.image || SAMPLE_ART[0]}" alt="${card.name}" />
+      </div>
+      <div class="card-type-row">${card.type || ""}</div>
+      <div class="card-stats-row">${card.power !== undefined ? `${card.power} / ${card.guard ?? card.toughness ?? 0}` : ""}</div>
+    </div>
+  `;
+  overlay.classList.remove("card-detail-hidden");
+  overlay.onclick = hideDetailOverlay;
+}
+
+function hideDetailOverlay() {
+  const overlay = document.getElementById("card-detail-overlay");
+  if (!overlay) return;
+  overlay.classList.add("card-detail-hidden");
+  overlay.innerHTML = "";
 }
 
 function createPlayer(id, name, essence, baseKl) {
@@ -140,6 +206,7 @@ function drawCard(player) {
   if (player.veiledDeck.length === 0) return null;
   const card = player.veiledDeck.shift();
   player.hand.push(card);
+  card._justDrawn = true;
   return card;
 }
 
@@ -297,6 +364,7 @@ function playCardFromHand(cardId) {
   p.hand.splice(idx, 1);
 
   if (card.type === "Shard") {
+    card._justPlayed = true;
     p.shardRow.push(card);
     logLine(p.name + " played Shard: " + card.name + " (KL -" + cost + ").");
     recalcKl(p);
@@ -314,6 +382,7 @@ function playCardFromHand(cardId) {
     };
   } else if (card.type === "Avatar") {
     card.tapped = false;
+    card._justPlayed = true;
     p.avatarFrontline.push(card);
     logLine(p.name + " played Avatar: " + card.name + " (KL -" + cost + ").");
     focusInfo = {
@@ -596,6 +665,14 @@ function buildPlayerSection(player, index) {
 
   const veiledBody = document.createElement("div");
   veiledBody.className = "zone-body";
+  const veiledVisual = document.createElement("div");
+  veiledVisual.className = "deck-visual";
+  veiledVisual.innerHTML = `
+    <div class="deck-stack">
+      <div class="deck-card back"></div>
+      <div class="deck-card front"></div>
+    </div>
+  `;
   const veiledCount = document.createElement("div");
   veiledCount.className = "zone-count-badge";
   veiledCount.textContent = player.veiledDeck.length + " card(s)";
@@ -603,6 +680,7 @@ function buildPlayerSection(player, index) {
   veiledNote.className = "zone-note";
   veiledNote.textContent = "This mirrors the Veiled Deck stack on your physical mat.";
 
+  veiledBody.appendChild(veiledVisual);
   veiledBody.appendChild(veiledCount);
   veiledBody.appendChild(veiledNote);
   veiledCard.appendChild(veiledTitle);
@@ -780,14 +858,22 @@ function renderBattlefield(container, topPlayer, bottomPlayer) {
     slot.className = "battle-slot";
     if (card) {
       slot.classList.add("has-card");
-      slot.textContent =
-        card.name +
-        " (" +
-        (card.power || 0) +
-        "/" +
-        (card.guard || 0) +
-        ")" +
-        (card.tapped ? " [T]" : "");
+      slot.textContent = "";
+      const cardView = buildCardView(card, { canPlay: false });
+      if (card._justPlayed) {
+        requestAnimationFrame(() => {
+          cardView.classList.add("card-anim-play");
+          cardView.addEventListener(
+            "animationend",
+            () => {
+              cardView.classList.remove("card-anim-play");
+              card._justPlayed = false;
+            },
+            { once: true }
+          );
+        });
+      }
+      slot.appendChild(cardView);
       slot.onclick = function () {
         setFocus("card", "Avatar – " + card.name + " (P2)", [
           "Owner: " + topPlayer.name + " (P2).",
@@ -823,14 +909,22 @@ function renderBattlefield(container, topPlayer, bottomPlayer) {
     slot.className = "battle-slot";
     if (card) {
       slot.classList.add("has-card");
-      slot.textContent =
-        card.name +
-        " (" +
-        (card.power || 0) +
-        "/" +
-        (card.guard || 0) +
-        ")" +
-        (card.tapped ? " [T]" : "");
+      slot.textContent = "";
+      const cardView = buildCardView(card, { canPlay: false });
+      if (card._justPlayed) {
+        requestAnimationFrame(() => {
+          cardView.classList.add("card-anim-play");
+          cardView.addEventListener(
+            "animationend",
+            () => {
+              cardView.classList.remove("card-anim-play");
+              card._justPlayed = false;
+            },
+            { once: true }
+          );
+        });
+      }
+      slot.appendChild(cardView);
       slot.onclick = function () {
         setFocus("card", "Avatar – " + card.name + " (P1)", [
           "Owner: " + bottomPlayer.name + " (P1).",
@@ -1054,22 +1148,30 @@ function render() {
       handRow.appendChild(empty);
     } else {
       pActive.hand.forEach((card) => {
-        const btn = document.createElement("button");
-        btn.className = "card-button";
-        btn.textContent =
-          card.name +
-          " [" +
-          card.type +
-          " • KL " +
-          (card.klCost || 0) +
-          "]";
         const canAfford = pActive.currentKl >= (card.klCost || 0);
-        btn.disabled = !canAfford;
-        btn.title = card.name + " – KL cost " + (card.klCost || 0) + ". Click to play.";
-        btn.onclick = function () {
-          playCardFromHand(card.id);
-        };
-        handRow.appendChild(btn);
+        const cardView = buildCardView(card, {
+          canPlay: canAfford,
+          onClick: () => {
+            if (canAfford) playCardFromHand(card.id);
+          },
+        });
+        cardView.classList.add("hand-card");
+
+        requestAnimationFrame(() => {
+          if (card._justDrawn) {
+            cardView.classList.add("card-anim-draw");
+            cardView.addEventListener(
+              "animationend",
+              () => {
+                cardView.classList.remove("card-anim-draw");
+                card._justDrawn = false;
+              },
+              { once: true }
+            );
+          }
+        });
+
+        handRow.appendChild(cardView);
       });
     }
   }
