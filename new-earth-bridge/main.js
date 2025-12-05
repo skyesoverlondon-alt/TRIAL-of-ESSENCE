@@ -1,6 +1,60 @@
+import { ProfileManager } from "../project-essence/profileManager.js";
+
 const MAX_KL = 31;
 const GOD_THRESHOLD = 13;
 const MAX_GOD_CHARGES = 3;
+
+const CAMPAIGN_ACTS = [
+  {
+    id: 1,
+    title: "Act I – Kaixu-Prime Skirmishes",
+    summary: "Scout the shardlines and secure the bridgeheads.",
+    nodes: [
+      {
+        id: "act1-node1",
+        title: "Shard Scouting",
+        desc: "Open with basic shard deployment to stabilize the lane.",
+        rewards: { crownShards: 40, essenceTokens: 10 },
+        stars: 1,
+      },
+      {
+        id: "act1-node2",
+        title: "Bridgehold Clash",
+        desc: "Hold against a counterattack and push back.",
+        rewards: { crownShards: 60, arcaneKeys: 1 },
+        stars: 2,
+      },
+      {
+        id: "act1-node3",
+        title: "Nullgrid Breach",
+        desc: "Break through Nullgrid resistance with a decisive strike.",
+        rewards: { crownShards: 80, unlockedDeities: ["DEITY_Nullgrid"] },
+        stars: 3,
+      },
+    ],
+  },
+  {
+    id: 2,
+    title: "Act II – Crownline Offensive",
+    summary: "Capture relay points and claim Kaixu-Prime’s mythic relics.",
+    nodes: [
+      {
+        id: "act2-node1",
+        title: "Solar Relay",
+        desc: "Empower your KL network while denying the foe.",
+        rewards: { crownShards: 120, essenceTokens: 20 },
+        stars: 1,
+      },
+      {
+        id: "act2-node2",
+        title: "Crownforge Duel",
+        desc: "Face an elite champion with enhanced God Charges.",
+        rewards: { crownShards: 150, arcaneKeys: 2, unlockedCardIds: ["EC-AV-201"] },
+        stars: 2,
+      },
+    ],
+  },
+];
 
 const PHASES = ["Ready", "Draw", "KL Recalc", "Main", "Combat", "End"];
 
@@ -82,6 +136,8 @@ function bindShellEvents() {
     ui.start.addEventListener("click", () => {
       ui.loading?.classList.add("hidden");
       ui.board?.classList.remove("hidden");
+      campaignState.mode = "freeplay";
+      campaignState.activeNode = null;
       resetGame();
     });
   }
@@ -617,6 +673,7 @@ function attackWithAll() {
 
   if (opp.essence <= 0) {
     logLine(opp.name + " has been reduced to 0 Essence. Game over.");
+    handleVictory(p.id);
   }
 
   game.currentPhase = "End";
@@ -1439,5 +1496,7 @@ function render() {
 
 cacheAppNode();
 bindShellEvents();
+renderProfileUI();
+renderCampaignUI();
 logLine("New game started.");
 render();
