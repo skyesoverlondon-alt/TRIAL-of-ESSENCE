@@ -11438,3 +11438,69 @@ CosmeticsManager.getCosmeticsOwned = function() {
         .filter(id => this.owned[id])
         .map(id => this.getCosmetic(id));
 };
+
+// ===== SAFETY: TUTORIAL OVERLAY HANDLING (BOARD LANDING PAGE) =====
+function showTutorialOverlay() {
+    const overlay = document.getElementById('tutorial-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('tutorial-hidden');
+}
+
+function hideTutorialOverlay() {
+    const overlay = document.getElementById('tutorial-overlay');
+    if (!overlay) return;
+    overlay.classList.add('tutorial-hidden');
+}
+
+function initTutorialUI() {
+    const playTutorialBtn = document.getElementById('play-tutorial-btn');
+    const tutorialOverlay = document.getElementById('tutorial-overlay');
+    const tutorialText = document.getElementById('tutorial-text');
+    const tutorialNextBtn = document.getElementById('tutorial-next-btn');
+    const tutorialExitBtn = document.getElementById('tutorial-exit-btn');
+
+    // If the overlay or text container is missing, bail early to avoid breaking the main screen.
+    if (!tutorialOverlay || !tutorialText) return;
+
+    // Always start hidden for safety so the board remains clickable.
+    tutorialOverlay.classList.add('tutorial-hidden');
+
+    if (playTutorialBtn) {
+        playTutorialBtn.addEventListener('click', () => {
+            if (typeof startTutorialGame === 'function') {
+                startTutorialGame();
+            } else {
+                showTutorialOverlay();
+            }
+        });
+    }
+
+    if (tutorialNextBtn) {
+        tutorialNextBtn.addEventListener('click', () => {
+            if (typeof advanceTutorialStep === 'function') {
+                advanceTutorialStep();
+            } else {
+                hideTutorialOverlay();
+            }
+        });
+    }
+
+    if (tutorialExitBtn) {
+        tutorialExitBtn.addEventListener('click', () => {
+            if (typeof endTutorialMode === 'function') {
+                endTutorialMode();
+            } else {
+                hideTutorialOverlay();
+            }
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Safety net: force-hide overlay on initial load and wire basic controls.
+    const overlay = document.getElementById('tutorial-overlay');
+    if (overlay) {
+        overlay.classList.add('tutorial-hidden');
+    }
+    initTutorialUI();
+});
