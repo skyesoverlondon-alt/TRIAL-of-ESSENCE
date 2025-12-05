@@ -1,6 +1,60 @@
+import { ProfileManager } from "../project-essence/profileManager.js";
+
 const MAX_KL = 31;
 const GOD_THRESHOLD = 13;
 const MAX_GOD_CHARGES = 3;
+
+const CAMPAIGN_ACTS = [
+  {
+    id: 1,
+    title: "Act I – Kaixu-Prime Skirmishes",
+    summary: "Scout the shardlines and secure the bridgeheads.",
+    nodes: [
+      {
+        id: "act1-node1",
+        title: "Shard Scouting",
+        desc: "Open with basic shard deployment to stabilize the lane.",
+        rewards: { crownShards: 40, essenceTokens: 10 },
+        stars: 1,
+      },
+      {
+        id: "act1-node2",
+        title: "Bridgehold Clash",
+        desc: "Hold against a counterattack and push back.",
+        rewards: { crownShards: 60, arcaneKeys: 1 },
+        stars: 2,
+      },
+      {
+        id: "act1-node3",
+        title: "Nullgrid Breach",
+        desc: "Break through Nullgrid resistance with a decisive strike.",
+        rewards: { crownShards: 80, unlockedDeities: ["DEITY_Nullgrid"] },
+        stars: 3,
+      },
+    ],
+  },
+  {
+    id: 2,
+    title: "Act II – Crownline Offensive",
+    summary: "Capture relay points and claim Kaixu-Prime’s mythic relics.",
+    nodes: [
+      {
+        id: "act2-node1",
+        title: "Solar Relay",
+        desc: "Empower your KL network while denying the foe.",
+        rewards: { crownShards: 120, essenceTokens: 20 },
+        stars: 1,
+      },
+      {
+        id: "act2-node2",
+        title: "Crownforge Duel",
+        desc: "Face an elite champion with enhanced God Charges.",
+        rewards: { crownShards: 150, arcaneKeys: 2, unlockedCardIds: ["EC-AV-201"] },
+        stars: 2,
+      },
+    ],
+  },
+];
 
 const PHASES = ["Ready", "Draw", "KL Recalc", "Main", "Combat", "End"];
 
@@ -9,6 +63,204 @@ const ui = {
   board: document.getElementById("board-screen"),
   start: document.getElementById("start-button"),
 };
+
+let profile = ProfileManager.getProfile();
+let campaignState = {
+  activeNode: null,
+  mode: "freeplay",
+};
+
+let isTutorialMode = false;
+let tutorialStepIndex = 0;
+
+const tutorialScript = [
+  {
+    id: "intro",
+    trigger: "onTutorialStart",
+    message:
+      "Welcome to Essence Crown: Shard Wars. This tutorial will walk you through your first few turns.",
+  },
+  {
+    id: "zones",
+    trigger: "onBoardReady",
+    message:
+      "At the top is your Deity. In front are your Shard lanes. Your hand sits at the bottom. The deck is to the side.",
+  },
+  {
+    id: "turn1_draw",
+    trigger: "onTurnStart",
+    turn: 1,
+    player: "you",
+    message:
+      "Turn 1: The game draws a card for you. Look at your Shards. Play a Shard into a lane to begin generating Essence.",
+  },
+  {
+    id: "turn1_play_shard",
+    trigger: "onCardPlayed",
+    condition: "shardFirst",
+    message:
+      "Great. Shards are like your energy sources. On future turns, they’ll fuel your Avatars and Techniques.",
+  },
+  {
+    id: "turn2_start",
+    trigger: "onTurnStart",
+    turn: 2,
+    player: "you",
+    message:
+      "Turn 2: Draw again. Now you should have enough Essence to play an Avatar. Play one into a Shard lane.",
+  },
+  {
+    id: "turn2_attack",
+    trigger: "onCombatAvailable",
+    message:
+      "Once your Avatar is in play and can attack, choose a lane and attack. Damage goes through that lane to enemy Avatars or their Deity.",
+  },
+  {
+    id: "turn3_start",
+    trigger: "onTurnStart",
+    turn: 3,
+    player: "you",
+    message:
+      "Turn 3: You know the basics. Play another card or use a Technique, then attack again. After this turn, the tutorial will end and the game continues normally.",
+  },
+  {
+    id: "outro",
+    trigger: "onAfterTurn",
+    turn: 3,
+    player: "you",
+    message:
+      "You’ve completed the guided tutorial. You can keep playing this game out, or start a normal match from the main screen when you’re ready.",
+  },
+];
+
+function renderProfileUI() {
+  const nameInput = document.getElementById("profile-name");
+  const avatarSelect = document.getElementById("profile-avatar");
+  const currencyRow = document.getElementById("currency-row");
+  const alignmentBars = document.getElementById("alignment-bars");
+
+  if (nameInput) nameInput.value = profile.displayName || "";
+  if (avatarSelect) avatarSelect.value = profile.avatarId || "estifarr";
+
+  if (currencyRow) {
+    currencyRow.innerHTML = "";
+    const entries = [
+      { label: "Crown Shards", value: profile.currencies.crownShards },
+      { label: "Arcane Keys", value: profile.currencies.arcaneKeys },
+      { label: "Essence Tokens", value: profile.currencies.essenceTokens },
+    ];
+    entries.forEach((c) => {
+      const pill = document.createElement("div");
+      pill.className = "currency-pill";
+      pill.textContent = `${c.label}: ${c.value}`;
+      currencyRow.appendChild(pill);
+    });
+  }
+
+  if (alignmentBars) {
+    alignmentBars.innerHTML = "";
+    Object.entries(profile.shardAlignment).forEach(([key, val]) => {
+      const row = document.createElement("div");
+      row.className = "alignment-row";
+      const label = document.createElement("div");
+      label.textContent = key.toUpperCase();
+      const meter = document.createElement("div");
+      meter.className = "alignment-meter";
+      const fill = document.createElement("div");
+      fill.className = "alignment-fill";
+      const ratio = Math.min(1, Math.max(0, val / 100));
+      fill.style.transform = `scaleX(${ratio})`;
+      meter.appendChild(fill);
+      const value = document.createElement("div");
+      value.textContent = val;
+      row.appendChild(label);
+      row.appendChild(meter);
+      row.appendChild(value);
+      alignmentBars.appendChild(row);
+    });
+  }
+}
+
+function renderCampaignUI() {
+  const wrapper = document.getElementById("campaign-acts");
+  if (!wrapper) return;
+  wrapper.innerHTML = "";
+
+  CAMPAIGN_ACTS.forEach((act) => {
+    if (act.id > (profile.campaignProgress.actUnlocked || 1)) return;
+    const card = document.createElement("div");
+    card.className = "act-card";
+
+    const title = document.createElement("div");
+    title.className = "act-title";
+    title.textContent = act.title;
+    card.appendChild(title);
+
+    const summary = document.createElement("div");
+    summary.className = "node-desc";
+    summary.textContent = act.summary;
+    card.appendChild(summary);
+
+    const list = document.createElement("div");
+    list.className = "node-list";
+
+    act.nodes.forEach((node) => {
+      const nodeCard = document.createElement("div");
+      nodeCard.className = "node-card";
+      const titleRow = document.createElement("div");
+      titleRow.className = "node-title";
+      const span = document.createElement("span");
+      span.textContent = node.title;
+      const status = document.createElement("span");
+      const complete = profile.campaignProgress.completedNodes.includes(node.id);
+      status.textContent = complete ? "Completed" : `Stars ${node.stars}`;
+      status.style.color = complete ? "#22d3ee" : "#fef08a";
+      titleRow.appendChild(span);
+      titleRow.appendChild(status);
+      nodeCard.appendChild(titleRow);
+
+      const desc = document.createElement("div");
+      desc.className = "node-desc";
+      desc.textContent = node.desc;
+      nodeCard.appendChild(desc);
+
+      const rewards = document.createElement("div");
+      rewards.className = "node-rewards";
+      Object.entries(node.rewards).forEach(([k, v]) => {
+        const pill = document.createElement("div");
+        pill.className = "currency-pill";
+        pill.textContent = `${k}: ${Array.isArray(v) ? v.join(', ') : v}`;
+        rewards.appendChild(pill);
+      });
+      nodeCard.appendChild(rewards);
+
+      const actions = document.createElement("div");
+      actions.className = "node-actions";
+      const playBtn = document.createElement("button");
+      playBtn.textContent = "Play Node";
+      playBtn.onclick = () => startCampaignNode(node, act);
+      actions.appendChild(playBtn);
+      const scoutBtn = document.createElement("button");
+      scoutBtn.className = "ghost";
+      scoutBtn.textContent = "Brief";
+      scoutBtn.onclick = () => {
+        focusInfo = {
+          kind: "mission",
+          title: node.title,
+          lines: [node.desc, "Rewards: " + Object.keys(node.rewards).join(", ")],
+        };
+        render();
+      };
+      actions.appendChild(scoutBtn);
+      nodeCard.appendChild(actions);
+
+      list.appendChild(nodeCard);
+    });
+
+    card.appendChild(list);
+    wrapper.appendChild(card);
+  });
+}
 
 function cacheAppNode() {
   ui.app = document.getElementById("app");
@@ -19,9 +271,93 @@ function bindShellEvents() {
     ui.start.addEventListener("click", () => {
       ui.loading?.classList.add("hidden");
       ui.board?.classList.remove("hidden");
+      campaignState.mode = "freeplay";
+      campaignState.activeNode = null;
       resetGame();
     });
   }
+
+  initTutorialUI();
+
+  const nameInput = document.getElementById("profile-name");
+  const avatarSelect = document.getElementById("profile-avatar");
+  const resetBtn = document.getElementById("reset-profile");
+
+  if (nameInput) {
+    nameInput.addEventListener("change", (e) => {
+      profile = ProfileManager.update({ ...profile, displayName: e.target.value });
+      renderProfileUI();
+    });
+  }
+
+  if (avatarSelect) {
+    avatarSelect.addEventListener("change", (e) => {
+      profile = ProfileManager.update({ ...profile, avatarId: e.target.value });
+      renderProfileUI();
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      profile = ProfileManager.reset();
+      renderProfileUI();
+      renderCampaignUI();
+    });
+  }
+
+  const rewardClose = document.getElementById("reward-close");
+  if (rewardClose) rewardClose.addEventListener("click", hideRewardPanel);
+}
+
+function initTutorialUI() {
+  const playTutorialBtn = document.getElementById("play-tutorial-btn");
+  const tutorialNextBtn = document.getElementById("tutorial-next-btn");
+  const tutorialExitBtn = document.getElementById("tutorial-exit-btn");
+
+  if (playTutorialBtn) {
+    playTutorialBtn.addEventListener("click", () => {
+      ui.loading?.classList.add("hidden");
+      ui.board?.classList.remove("hidden");
+      startTutorialGame();
+    });
+  }
+
+  if (tutorialNextBtn) {
+    tutorialNextBtn.addEventListener("click", advanceTutorialStep);
+  }
+
+  if (tutorialExitBtn) {
+    tutorialExitBtn.addEventListener("click", endTutorialMode);
+  }
+}
+
+function showRewardPanel(text) {
+  const overlay = document.getElementById("reward-overlay");
+  const textEl = document.getElementById("reward-text");
+  if (!overlay || !textEl) return;
+  textEl.textContent = text;
+  overlay.classList.remove("tutorial-hidden");
+}
+
+function hideRewardPanel() {
+  const overlay = document.getElementById("reward-overlay");
+  if (overlay) overlay.classList.add("tutorial-hidden");
+}
+
+function startCampaignNode(node, act) {
+  campaignState.activeNode = { ...node, actId: act.id };
+  campaignState.mode = "campaign";
+  ui.loading?.classList.add("hidden");
+  ui.board?.classList.remove("hidden");
+  resetGame();
+  game.players[0].name = profile.displayName || "Frontliner";
+  game.players[1].name = act.title;
+  focusInfo = {
+    kind: "mission",
+    title: node.title,
+    lines: [node.desc, "Rewards ready upon victory."],
+  };
+  render();
 }
 
 function createDeity(ownerId, essence, baseKl) {
@@ -75,7 +411,18 @@ function createFakeDeck(ownerId) {
   return deck;
 }
 
-function createPlayer(id, name, essence, baseKl) {
+function createTutorialDeck(ownerId) {
+  return [
+    createShard(ownerId, 0, 1),
+    createShard(ownerId, 1, 1),
+    createAvatar(ownerId, 0, ownerId === "P1" ? "Solar Initiate" : "Nullblade Acolyte", 2, 2, 2),
+    createShard(ownerId, 2, 1),
+    createAvatar(ownerId, 1, ownerId === "P1" ? "Crownflame Herald" : "Voidmarked Raider", 3, 2, 3),
+    createAvatar(ownerId, 2, ownerId === "P1" ? "Aegis Warden" : "Shroud Stalker", 4, 3, 4),
+  ];
+}
+
+function createPlayer(id, name, essence, baseKl, deckOverride) {
   const deity = createDeity(id, essence, baseKl);
   return {
     id,
@@ -87,7 +434,7 @@ function createPlayer(id, name, essence, baseKl) {
     klCap: MAX_KL,
     godCharges: 0,
     godChargesSpent: 0,
-    veiledDeck: createFakeDeck(id),
+    veiledDeck: deckOverride || createFakeDeck(id),
     hand: [],
     shardRow: [],
     avatarFrontline: [],
@@ -119,6 +466,44 @@ let focusInfo = {
 };
 
 let guidedMode = true;
+
+function showTutorialMessage(message) {
+  const overlay = document.getElementById("tutorial-overlay");
+  const textEl = document.getElementById("tutorial-text");
+  if (!overlay || !textEl) return;
+
+  textEl.textContent = message;
+  overlay.classList.remove("tutorial-hidden");
+}
+
+function hideTutorialMessage() {
+  const overlay = document.getElementById("tutorial-overlay");
+  if (!overlay) return;
+  overlay.classList.add("tutorial-hidden");
+}
+
+function advanceTutorialStep() {
+  hideTutorialMessage();
+}
+
+function endTutorialMode() {
+  isTutorialMode = false;
+  hideTutorialMessage();
+}
+
+function runTutorialTrigger(triggerName, context = {}) {
+  if (!isTutorialMode) return;
+
+  const step = tutorialScript[tutorialStepIndex];
+  if (!step || step.trigger !== triggerName) return;
+
+  if (typeof step.turn === "number" && context.turn !== step.turn) return;
+  if (step.player && context.player !== step.player) return;
+  if (step.condition === "shardFirst" && context.cardType !== "Shard") return;
+
+  showTutorialMessage(step.message);
+  tutorialStepIndex += 1;
+}
 
 function activePlayer() {
   return game.activeIndex === -1 ? null : game.players[game.activeIndex];
@@ -188,6 +573,9 @@ function readyFrontline(player) {
 }
 
 function startNextTurn() {
+  const previousPlayer = game.activeIndex;
+  const previousTurn = game.turnNumber;
+
   if (game.activeIndex === -1) {
     game.activeIndex = 0;
     game.turnNumber = 1;
@@ -235,6 +623,10 @@ function startNextTurn() {
     logLine(opp.name + " has 0 Essence. Game over.");
   }
 
+  if (isTutorialMode && previousPlayer === 0 && previousTurn > 0) {
+    runTutorialTrigger("onAfterTurn", { turn: previousTurn, player: "you" });
+  }
+
   focusInfo = {
     kind: "turn",
     title: "Turn " + game.turnNumber + " — " + p.name,
@@ -257,6 +649,11 @@ function startNextTurn() {
       "God Charges: " + p.godCharges + " / " + MAX_GOD_CHARGES + ".",
     ],
   };
+
+  runTutorialTrigger("onTurnStart", {
+    turn: game.turnNumber,
+    player: game.activeIndex === 0 ? "you" : "opponent",
+  });
 
   render();
 }
@@ -338,6 +735,10 @@ function playCardFromHand(cardId) {
     };
   }
 
+  if (isTutorialMode) {
+    runTutorialTrigger("onCardPlayed", { cardType: card.type });
+  }
+
   render();
 }
 
@@ -364,6 +765,8 @@ function attackWithAll() {
     render();
     return;
   }
+
+  runTutorialTrigger("onCombatAvailable", { player: "you" });
 
   let totalDamage = 0;
   attackers.forEach((a) => {
@@ -405,13 +808,103 @@ function attackWithAll() {
 
   if (opp.essence <= 0) {
     logLine(opp.name + " has been reduced to 0 Essence. Game over.");
+    handleVictory(p.id);
   }
 
   game.currentPhase = "End";
   render();
 }
 
+function handleVictory(winnerId) {
+  if (campaignState.mode === "campaign" && campaignState.activeNode && winnerId === "P1") {
+    const node = campaignState.activeNode;
+    profile = ProfileManager.recordCompletion(node.id, node.stars || 1, node.rewards || {});
+    const actData = CAMPAIGN_ACTS.find((a) => a.id === node.actId);
+    if (actData && profile.campaignProgress.actUnlocked < actData.id + 1) {
+      profile = ProfileManager.update({
+        ...profile,
+        campaignProgress: {
+          ...profile.campaignProgress,
+          actUnlocked: actData.id + 1,
+        },
+      });
+    }
+    profile = ProfileManager.update((p) => ({
+      ...p,
+      shardAlignment: {
+        ...p.shardAlignment,
+        estifarr: (p.shardAlignment.estifarr || 0) + 5,
+      },
+    }));
+    campaignState.activeNode = null;
+    campaignState.mode = "freeplay";
+    renderProfileUI();
+    renderCampaignUI();
+    const rewardList = Object.entries(node.rewards || {})
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+      .join(" • ");
+    showRewardPanel(`Victory! Rewards claimed: ${rewardList}`);
+  }
+}
+
+function dealOpeningHand(player, count) {
+  for (let i = 0; i < count; i++) {
+    drawCard(player);
+  }
+}
+
+function startNewGameWithTutorialDecks() {
+  const playerDeck = createTutorialDeck("P1");
+  const opponentDeck = createTutorialDeck("P2");
+
+  game.players = [
+    createPlayer("P1", "Player One", 23, 3, playerDeck),
+    createPlayer("P2", "AI Opponent", 21, 3, opponentDeck),
+  ];
+  game.activeIndex = -1;
+  game.turnNumber = 0;
+  game.currentPhase = "Ready";
+  game.log = [];
+
+  dealOpeningHand(game.players[0], 3);
+  dealOpeningHand(game.players[1], 2);
+
+  const oppShard = game.players[1].veiledDeck.shift();
+  if (oppShard) {
+    game.players[1].shardRow.push(oppShard);
+    recalcKl(game.players[1]);
+  }
+
+  focusInfo = {
+    kind: "board",
+    title: "Tutorial Ready",
+    lines: [
+      "Scripted decks are loaded. Use “Start Game” to begin Turn 1.",
+      "You’ll see guided steps for the first few turns.",
+    ],
+  };
+  logLine("Tutorial game initialized with scripted decks.");
+  render();
+}
+
+function startTutorialGame() {
+  isTutorialMode = true;
+  tutorialStepIndex = 0;
+  campaignState.mode = "tutorial";
+  campaignState.activeNode = null;
+  startNewGameWithTutorialDecks();
+  runTutorialTrigger("onTutorialStart");
+  runTutorialTrigger("onBoardReady");
+}
+
 function resetGame() {
+  isTutorialMode = false;
+  tutorialStepIndex = 0;
+  hideTutorialMessage();
+  if (campaignState.mode !== "campaign") {
+    campaignState.activeNode = null;
+    campaignState.mode = "freeplay";
+  }
   game.players = [
     createPlayer("P1", "Player One", 23, 3),
     createPlayer("P2", "Player Two", 21, 3),
@@ -1143,5 +1636,7 @@ function render() {
 
 cacheAppNode();
 bindShellEvents();
+renderProfileUI();
+renderCampaignUI();
 logLine("New game started.");
 render();
