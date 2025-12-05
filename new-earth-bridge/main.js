@@ -67,6 +67,13 @@ function cacheAppNode() {
   ui.app = document.getElementById("app");
 }
 
+function startGame() {
+  ui.loading?.classList.add("hidden");
+  ui.board?.classList.remove("hidden");
+  resetGame();
+  startNextTurn();
+}
+
 function bindShellEvents() {
   const startGame = () => {
     ui.loading?.classList.add("hidden");
