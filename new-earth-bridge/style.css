@@ -1296,8 +1296,3 @@ button:disabled {
     grid-column: span 2;
   }
 }
-#tutorial-overlay {
-  display: none !important;
-  pointer-events: none !important;
-}
-
