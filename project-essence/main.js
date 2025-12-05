@@ -8713,71 +8713,83 @@ const Game = {
     createCardElement(card, isHand = false, playerIndex = 0) {
         const el = document.createElement('div');
         const aspectClass = card.aspects && card.aspects.length > 0 ? card.aspects[0].toLowerCase() : (card.aspect ? card.aspect.toLowerCase() : '');
-        el.className = `game-card ${aspectClass}`;
+        el.className = `game-card card-frame ${aspectClass}`;
         el.dataset.cardId = card.instanceId;
         if (card.tapped) el.classList.add('tapped');
         if (card.faceDown) el.classList.add('face-down');
-        
+
         if (this.state.combat.selectedAttacker?.instanceId === card.instanceId) {
             el.classList.add('selected-attacker');
         }
-        
+
         if (this.state.combat.mode === 'selectTarget' && playerIndex !== this.state.currentPlayer) {
             el.classList.add('valid-target');
         }
-        
+
         if (this.state.spell.mode === 'selectTarget') {
             const targetType = this.state.spell.targetType;
             if ((targetType === 'avatar' || targetType === 'any') && card.type === 'Avatar') {
                 el.classList.add('valid-spell-target');
             }
         }
-        
+
         const hasStats = card.type === 'Avatar' && card.attack !== undefined;
         const healthPercent = hasStats ? ((card.healthCurrent || card.health) / card.health) * 100 : 100;
-        
+
         const isGuardian = hasGuardian(card);
         const isCardBeast = isBeast(card);
-        
+        const typeLine = card.rawType || [card.type, card.aspects && card.aspects.length ? `— ${card.aspects.join(' / ')}` : ''].filter(Boolean).join(' ');
+        const rarity = card.rarity ? `<span class="card-rarity">${card.rarity}</span>` : '';
+
         el.innerHTML = `
             <div class="card-front">
-                <img class="card-image" src="${card.image}" alt="${card.name}">
-                <div class="card-cost">${card.cost || 0}</div>
+                <div class="card-art-wrap">
+                    <img class="card-art" src="${card.image}" alt="${card.name}">
+                    <div class="card-overlay-gradient"></div>
+                </div>
+                <div class="card-top-row">
+                    <div class="card-title">${card.name}</div>
+                    <div class="card-cost">${card.cost || 0}</div>
+                </div>
+                <div class="card-type-line">${rarity}${rarity ? ' • ' : ''}${typeLine}</div>
+                <div class="card-rules" aria-label="Rules text">${card.effect || 'No rules text'}</div>
+                ${hasStats ? `
+                    <div class="card-stats">
+                        <span class="stat attack">${card.attack}</span>
+                        <span class="stat health">${card.healthCurrent || card.health}</span>
+                    </div>
+                    <div class="health-bar">
+                        <div class="health-fill" style="width: ${healthPercent}%"></div>
+                    </div>
+                ` : ''}
                 ${isGuardian ? '<div class="guardian-badge">GUARD</div>' : ''}
                 ${isCardBeast ? '<div class="beast-badge">BEAST</div>' : ''}
-                <div class="card-info">
-                    <div class="card-name">${card.name}</div>
-                    ${hasStats ? `
-                        <div class="card-stats">
-                            <span class="stat attack">${card.attack}</span>
-                            <span class="stat health">${card.healthCurrent || card.health}</span>
-                        </div>
-                        <div class="health-bar">
-                            <div class="health-fill" style="width: ${healthPercent}%"></div>
-                        </div>
-                    ` : ''}
-                </div>
             </div>
         `;
-        
+
         el.oncontextmenu = (e) => this.showContextMenu(e, card);
-        
-        el.onmouseenter = () => this.showCardPreview(card);
-        el.onmouseleave = () => this.hideCardPreview();
+
+        el.onmouseenter = () => {
+            el.classList.add('hovered');
+            this.showCardPreview(card);
+        };
+        el.onmouseleave = () => {
+            el.classList.remove('hovered');
+            this.hideCardPreview();
+        };
         el.ondblclick = (e) => {
             e.stopPropagation();
             this.showCardZoom(card);
         };
-        
-        if (isHand) {
-            el.style.cursor = 'pointer';
-            el.onclick = (e) => {
+
+        el.onclick = (e) => {
+            if (isHand) {
                 e.stopPropagation();
                 this.playCard(card, 0);
-            };
-        } else if (card.type === 'Avatar') {
-            el.style.cursor = 'pointer';
-            el.onclick = (e) => {
+                return;
+            }
+
+            if (card.type === 'Avatar') {
                 e.stopPropagation();
                 if (this.state.spell.mode === 'selectTarget') {
                     const targetType = this.state.spell.targetType;
@@ -8792,9 +8804,18 @@ const Game = {
                     this.enterCombatMode();
                     this.selectAttacker(card, playerIndex);
                 }
-            };
+            } else if (('ontouchstart' in window || navigator.maxTouchPoints > 0) && !isHand) {
+                // Toggle focus on touch devices for non-hand cards
+                e.stopPropagation();
+                el.classList.toggle('hovered');
+            }
+        };
+
+        if (isHand) {
+            el.classList.add('hand-card');
+            requestAnimationFrame(() => el.classList.add('hand-card-enter'));
         }
-        
+
         return el;
     },
 
