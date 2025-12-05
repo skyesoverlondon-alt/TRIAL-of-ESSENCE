@@ -7368,6 +7368,7 @@ const Game = {
             if (p.deck.length > 0) {
                 const card = p.deck.pop();
                 p.hand.push(card);
+                card._justDrawn = true;
                 this.state.drawsThisTurn++;
                 this.log(`Player ${playerIndex + 1} drew ${card.name}`, 'action');
                 MatchRecorder.recordAction('DRAW', { cardId: card.id, cardName: card.name }, playerIndex);
@@ -7487,8 +7488,9 @@ const Game = {
         p.klCurrent -= card.cost;
         
         this.state.cardsPlayedThisTurn++;
-        
+
         if (card.type === 'Avatar') {
+            card._justPlayed = true;
             p.avatarRow.push(card);
             this.state.combat.summonedThisTurn.push(card.instanceId);
             this.log(`Player ${playerIndex + 1} summoned ${card.name}`, 'action');
@@ -7511,6 +7513,7 @@ const Game = {
             }
             if (p.domain) p.graveyard.push(p.domain);
             p.domain = card;
+            card._justPlayed = true;
             p.domainRow.push(card);
             this.recordDomainPlay();
             this.log(`Player ${playerIndex + 1} set Domain: ${card.name}`, 'action');
@@ -8175,6 +8178,40 @@ const Game = {
         }, 50);
     },
 
+    showCardDetailOverlay(card) {
+        const overlay = document.getElementById('card-detail-overlay');
+        if (!overlay || !card) return;
+
+        const statsText = card.attack !== undefined && card.health !== undefined
+            ? `${card.attack} / ${card.healthCurrent || card.health}`
+            : (card.stats || '');
+
+        overlay.innerHTML = `
+            <div class="card-detail-content">
+                <div class="card-header-row">
+                    <span class="card-title">${card.name}</span>
+                    <span class="card-cost">${card.cost || 0} KL</span>
+                </div>
+                <div class="card-art-wrapper">
+                    <img class="card-art" src="${card.image}" alt="${card.name}">
+                </div>
+                <div class="card-type-row">${card.type || ''}${card.rarity ? ' • ' + card.rarity : ''}</div>
+                <div class="card-stats-row">${statsText}</div>
+                <div class="card-rules">${card.effect || 'No rules text'}</div>
+            </div>
+        `;
+
+        overlay.classList.remove('card-detail-hidden');
+        overlay.onclick = () => this.hideCardDetailOverlay();
+    },
+
+    hideCardDetailOverlay() {
+        const overlay = document.getElementById('card-detail-overlay');
+        if (!overlay) return;
+        overlay.classList.add('card-detail-hidden');
+        overlay.innerHTML = '';
+    },
+
     toggleRulesHelper() {
         this.state.rulesHelper = !this.state.rulesHelper;
         const btn = document.getElementById('btn-rules-helper');
@@ -8743,27 +8780,29 @@ const Game = {
 
         el.innerHTML = `
             <div class="card-front">
-                <div class="card-art-wrap">
-                    <img class="card-art" src="${card.image}" alt="${card.name}">
-                    <div class="card-overlay-gradient"></div>
-                </div>
-                <div class="card-top-row">
-                    <div class="card-title">${card.name}</div>
-                    <div class="card-cost">${card.cost || 0}</div>
-                </div>
-                <div class="card-type-line">${rarity}${rarity ? ' • ' : ''}${typeLine}</div>
-                <div class="card-rules" aria-label="Rules text">${card.effect || 'No rules text'}</div>
-                ${hasStats ? `
-                    <div class="card-stats">
-                        <span class="stat attack">${card.attack}</span>
-                        <span class="stat health">${card.healthCurrent || card.health}</span>
+                <div class="card-frame">
+                    <div class="card-art-wrapper">
+                        <img class="card-art" src="${card.image}" alt="${card.name}">
                     </div>
-                    <div class="health-bar">
-                        <div class="health-fill" style="width: ${healthPercent}%"></div>
+                    <div class="card-overlay">
+                        <div class="card-header-row">
+                            <span class="card-title">${card.name}</span>
+                            <span class="card-cost">${card.cost || 0}</span>
+                        </div>
+                        <div class="card-type-row">
+                            <span class="card-type">${rarity}${rarity ? ' • ' : ''}${typeLine}</span>
+                        </div>
+                        ${card.effect ? `<div class="card-rules" aria-label="Rules text">${card.effect}</div>` : ''}
+                        ${hasStats ? `<div class="card-stats-row">${card.attack} / ${card.healthCurrent || card.health}</div>` : `<div class="card-stats-row">${card.stats || ''}</div>`}
                     </div>
-                ` : ''}
-                ${isGuardian ? '<div class="guardian-badge">GUARD</div>' : ''}
-                ${isCardBeast ? '<div class="beast-badge">BEAST</div>' : ''}
+                    ${hasStats ? `
+                        <div class="health-bar">
+                            <div class="health-fill" style="width: ${healthPercent}%"></div>
+                        </div>
+                    ` : ''}
+                    ${isGuardian ? '<div class="guardian-badge">GUARD</div>' : ''}
+                    ${isCardBeast ? '<div class="beast-badge">BEAST</div>' : ''}
+                </div>
             </div>
         `;
 
@@ -8772,10 +8811,12 @@ const Game = {
         el.onmouseenter = () => {
             el.classList.add('hovered');
             this.showCardPreview(card);
+            this.showCardDetailOverlay(card);
         };
         el.onmouseleave = () => {
             el.classList.remove('hovered');
             this.hideCardPreview();
+            this.hideCardDetailOverlay();
         };
         el.ondblclick = (e) => {
             e.stopPropagation();
@@ -8813,7 +8854,24 @@ const Game = {
 
         if (isHand) {
             el.classList.add('hand-card');
-            requestAnimationFrame(() => el.classList.add('hand-card-enter'));
+            requestAnimationFrame(() => {
+                el.classList.add('hand-card-enter');
+                if (card._justDrawn) {
+                    el.classList.add('card-anim-draw');
+                    el.addEventListener('animationend', () => {
+                        el.classList.remove('card-anim-draw');
+                        card._justDrawn = false;
+                    }, { once: true });
+                }
+            });
+        } else if (card._justPlayed) {
+            requestAnimationFrame(() => {
+                el.classList.add('card-anim-play');
+                el.addEventListener('animationend', () => {
+                    el.classList.remove('card-anim-play');
+                    card._justPlayed = false;
+                }, { once: true });
+            });
         }
 
         return el;

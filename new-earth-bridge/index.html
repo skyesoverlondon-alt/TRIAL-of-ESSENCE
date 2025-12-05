@@ -30,8 +30,6 @@
     <nav class="nav-links">
       <a class="nav-link active" href="index.html">Home</a>
       <a class="nav-link" href="learn-to-play.html">Learn to Play</a>
-      <button id="open-campaign-btn" class="nav-link nav-button">Campaign</button>
-      <button id="open-profile-btn" class="nav-link nav-button">Profile</button>
     </nav>
   </header>
   <main id="shell">
@@ -40,49 +38,6 @@
       <p>Start a solo duel to enter the New Earth Command Bridge board.</p>
       <button id="start-button">Start Solo Duel</button>
       <button id="play-tutorial-btn" class="secondary-start">Play Tutorial</button>
-      <div class="profile-campaign-grid">
-        <div class="profile-card">
-          <div class="card-head">
-            <div class="eyebrow">Pilot Record</div>
-            <div class="title-row">
-              <div class="card-title">Player Profile</div>
-              <button id="reset-profile" class="ghost">Reset</button>
-            </div>
-          </div>
-          <div class="profile-body">
-            <label class="field">
-              <div class="field-label">Display Name</div>
-              <input id="profile-name" type="text" placeholder="Enter callsign" />
-            </label>
-            <label class="field">
-              <div class="field-label">Avatar</div>
-              <select id="profile-avatar">
-                <option value="estifarr">Estifarr</option>
-                <option value="lokaya">Lokaya</option>
-                <option value="hahalakiel">Hahalakiel</option>
-                <option value="kaiwass">Kaiwass</option>
-                <option value="halucard">Halucard</option>
-              </select>
-            </label>
-            <div class="shard-alignment">
-              <div class="field-label">Shard Alignment</div>
-              <div class="alignment-bars" id="alignment-bars"></div>
-            </div>
-            <div class="currencies" id="currency-row"></div>
-          </div>
-        </div>
-
-        <div class="profile-card campaign-card">
-          <div class="card-head">
-            <div class="eyebrow">Kaixu-Prime Front</div>
-            <div class="title-row">
-              <div class="card-title">Campaign</div>
-              <div class="card-sub">Acts, nodes, rewards</div>
-            </div>
-          </div>
-          <div id="campaign-acts" class="campaign-acts"></div>
-        </div>
-      </div>
     </section>
 
     <section id="board-screen" class="hidden">
@@ -92,59 +47,16 @@
     </section>
   </main>
 
+  <div id="card-detail-overlay" class="card-detail-hidden"></div>
+
   <script type="module" src="main.js"></script>
 
-  <div id="campaign-overlay" class="campaign-hidden">
-    <div class="campaign-panel">
-      <div class="campaign-header">
-        <h2>Essence Crown Campaign</h2>
-        <button id="close-campaign-btn" class="campaign-close">×</button>
-      </div>
-      <div id="campaign-profile-summary"></div>
-      <div id="campaign-act-list"></div>
-      <div id="campaign-node-list"></div>
-    </div>
-  </div>
-
-  <div id="profile-overlay" class="profile-hidden">
-    <div class="profile-panel">
-      <h2>Player Profile</h2>
-      <label>
-        Name:
-        <input id="profile-name-input" type="text" maxlength="24" />
-      </label>
-      <label>
-        Avatar:
-        <select id="profile-avatar-select">
-          <option value="estifarr">Estifarr – Protector</option>
-          <option value="lokaya">Lokaya – Gray Strategist</option>
-          <option value="hahalakiel">Hahalakiel – Law/Creation</option>
-          <option value="kaiwass">Kaiwass – Structure/Dimensions</option>
-          <option value="halucard">Halucard – Void/Erasure</option>
-        </select>
-      </label>
-      <div class="profile-actions">
-        <button id="profile-save-btn">Save</button>
-        <button id="profile-close-btn">Close</button>
-      </div>
-    </div>
-  </div>
-
-    <div id="tutorial-overlay" class="tutorial-hidden">
-      <div class="tutorial-panel">
-        <div id="tutorial-text"></div>
-        <div class="tutorial-controls">
-          <button id="tutorial-next-btn">Next</button>
-          <button id="tutorial-exit-btn">Exit Tutorial</button>
-        </div>
-      </div>
-    </div>
-
-  <div id="reward-overlay" class="tutorial-hidden">
-    <div class="tutorial-panel reward-panel">
-      <div id="reward-text"></div>
+  <div id="tutorial-overlay" class="tutorial-hidden">
+    <div class="tutorial-panel">
+      <div id="tutorial-text"></div>
       <div class="tutorial-controls">
-        <button id="reward-close">Continue</button>
+        <button id="tutorial-next-btn">Next</button>
+        <button id="tutorial-exit-btn">Exit Tutorial</button>
       </div>
     </div>
   </div>

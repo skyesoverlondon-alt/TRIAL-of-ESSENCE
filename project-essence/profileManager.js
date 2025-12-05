@@ -53,10 +53,6 @@ function loadProfile() {
   return profile;
 }
 
-function loadOrCreateProfile() {
-  return loadProfile();
-}
-
 function normalizeProfile(profile) {
   const merged = cloneProfile(DEFAULT_PROFILE);
   Object.assign(merged, profile || {});
@@ -91,17 +87,6 @@ function updateProfile(mutator) {
   return updated;
 }
 
-function applyAlignment(profile, adjustments) {
-  const result = cloneProfile(profile);
-  const adj = adjustments || {};
-  Object.keys(result.shardAlignment).forEach((key) => {
-    const delta = Number(adj[key]) || 0;
-    const next = Math.min(100, Math.max(0, (result.shardAlignment[key] || 0) + delta));
-    result.shardAlignment[key] = next;
-  });
-  return result;
-}
-
 function addCurrencies(profile, rewards) {
   const result = cloneProfile(profile);
   if (rewards.crownShards) result.currencies.crownShards += rewards.crownShards;
@@ -124,7 +109,7 @@ function addUnlocks(profile, rewards) {
   return result;
 }
 
-function recordNodeCompletion(profile, nodeId, stars, rewards, meta = {}) {
+function recordNodeCompletion(profile, nodeId, stars, rewards) {
   let working = cloneProfile(profile);
   if (!working.campaignProgress.completedNodes.includes(nodeId)) {
     working.campaignProgress.completedNodes.push(nodeId);
@@ -132,69 +117,34 @@ function recordNodeCompletion(profile, nodeId, stars, rewards, meta = {}) {
   if (stars) {
     working.campaignProgress.nodeStars[nodeId] = { stars: Math.min(3, Math.max(1, stars)) };
   }
-  if (meta.isGateNode && meta.nextAct) {
-    working.campaignProgress.actUnlocked = Math.max(
-      working.campaignProgress.actUnlocked || 1,
-      meta.nextAct
-    );
-  }
   working = addCurrencies(working, rewards || {});
   working = addUnlocks(working, rewards || {});
-  return working;
-}
-
-function grantRewards(profile, rewardBundle) {
-  const rewards = rewardBundle || {};
-  let working = addCurrencies(profile, rewards.currencies || rewards);
-  working = addUnlocks(working, rewards);
-  if (typeof rewards.xp === "number") {
-    working.xp = (working.xp || 0) + rewards.xp;
-    while (working.xp >= working.playerLevel * 100) {
-      working.xp -= working.playerLevel * 100;
-      working.playerLevel += 1;
-    }
-  }
   return working;
 }
 
 const ProfileManager = {
   load: loadProfile,
   save: saveProfile,
-  loadOrCreateProfile,
   update: updateProfile,
   getProfile: loadProfile,
-  adjustAlignment(adjustments) {
-    const profile = loadProfile();
-    const updated = applyAlignment(profile, adjustments);
-    saveProfile(updated);
-    return updated;
-  },
   reset() {
     const profile = cloneProfile(DEFAULT_PROFILE);
     profile.playerId = generateId();
     saveProfile(profile);
     return profile;
   },
-  recordCompletion(nodeId, stars = 1, rewards = {}, meta) {
+  recordCompletion(nodeId, stars = 1, rewards = {}) {
     const profile = loadProfile();
-    const updated = recordNodeCompletion(profile, nodeId, stars, rewards, meta);
+    const updated = recordNodeCompletion(profile, nodeId, stars, rewards);
     saveProfile(updated);
     return updated;
   },
   applyRewards(rewards = {}) {
     const profile = loadProfile();
-    const updated = grantRewards(profile, rewards);
+    const updated = addUnlocks(addCurrencies(profile, rewards), rewards);
     saveProfile(updated);
     return updated;
   },
 };
 
-export {
-  ProfileManager,
-  DEFAULT_PROFILE,
-  PROFILE_STORAGE_KEY,
-  loadOrCreateProfile,
-  grantRewards,
-  recordNodeCompletion,
-  applyAlignment,
-};
+export { ProfileManager, DEFAULT_PROFILE, PROFILE_STORAGE_KEY };
