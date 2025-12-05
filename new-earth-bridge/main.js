@@ -1,5 +1,3 @@
-import { ProfileManager } from "../project-essence/profileManager.js";
-
 const MAX_KL = 31;
 const GOD_THRESHOLD = 13;
 const MAX_GOD_CHARGES = 3;
@@ -62,107 +60,49 @@ const ui = {
   loading: document.getElementById("loading-screen"),
   board: document.getElementById("board-screen"),
   start: document.getElementById("start-button"),
+  secondaryStart: document.getElementById("secondary-start-button"),
 };
-
-let isTutorialMode = false;
-let tutorialStepIndex = 0;
-
-const tutorialScript = [
-  {
-    id: "intro",
-    trigger: "onTutorialStart",
-    message:
-      "Welcome to Essence Crown: Shard Wars. This tutorial will walk you through your first few turns.",
-  },
-  {
-    id: "zones",
-    trigger: "onBoardReady",
-    message:
-      "At the top is your Deity. In front are your Shard lanes. Your hand sits at the bottom. The deck is to the side.",
-  },
-  {
-    id: "turn1_draw",
-    trigger: "onTurnStart",
-    turn: 1,
-    player: "you",
-    message:
-      "Turn 1: The game draws a card for you. Look at your Shards. Play a Shard into a lane to begin generating Essence.",
-  },
-  {
-    id: "turn1_play_shard",
-    trigger: "onCardPlayed",
-    condition: "shardFirst",
-    message:
-      "Great. Shards are like your energy sources. On future turns, they’ll fuel your Avatars and Techniques.",
-  },
-  {
-    id: "turn2_start",
-    trigger: "onTurnStart",
-    turn: 2,
-    player: "you",
-    message:
-      "Turn 2: Draw again. Now you should have enough Essence to play an Avatar. Play one into a Shard lane.",
-  },
-  {
-    id: "turn2_attack",
-    trigger: "onCombatAvailable",
-    message:
-      "Once your Avatar is in play and can attack, choose a lane and attack. Damage goes through that lane to enemy Avatars or their Deity.",
-  },
-  {
-    id: "turn3_start",
-    trigger: "onTurnStart",
-    turn: 3,
-    player: "you",
-    message:
-      "Turn 3: You know the basics. Play another card or use a Technique, then attack again. After this turn, the tutorial will end and the game continues normally.",
-  },
-  {
-    id: "outro",
-    trigger: "onAfterTurn",
-    turn: 3,
-    player: "you",
-    message:
-      "You’ve completed the guided tutorial. You can keep playing this game out, or start a normal match from the main screen when you’re ready.",
-  },
-];
 
 function cacheAppNode() {
   ui.app = document.getElementById("app");
 }
 
 function bindShellEvents() {
+  const startGame = () => {
+    ui.loading?.classList.add("hidden");
+    ui.board?.classList.remove("hidden");
+    resetGame();
+    startNextTurn();
+  };
+
   if (ui.start) {
-    ui.start.addEventListener("click", () => {
-      ui.loading?.classList.add("hidden");
-      ui.board?.classList.remove("hidden");
-      campaignState.mode = "freeplay";
-      campaignState.activeNode = null;
-      resetGame();
-    });
+    ui.start.addEventListener("click", startGame);
   }
 
-  initTutorialUI();
+  if (ui.secondaryStart) {
+    ui.secondaryStart.addEventListener("click", startGame);
+  }
 }
 
-function initTutorialUI() {
-  const playTutorialBtn = document.getElementById("play-tutorial-btn");
-  const tutorialNextBtn = document.getElementById("tutorial-next-btn");
-  const tutorialExitBtn = document.getElementById("tutorial-exit-btn");
+function handleVictory(winnerId) {
+  const winner = game.players.find((p) => p.id === winnerId);
+  const loser = game.players.find((p) => p.id !== winnerId);
 
-  if (playTutorialBtn) {
-    playTutorialBtn.addEventListener("click", () => {
-      ui.start?.click();
-    });
-  }
+  game.currentPhase = "End";
+  game.activeIndex = -1;
+  logLine((winner ? winner.name : winnerId) + " wins the duel.");
 
-  if (tutorialNextBtn) {
-    tutorialNextBtn.addEventListener("click", advanceTutorialStep);
-  }
+  focusInfo = {
+    kind: "victory",
+    title: "Victory",
+    lines: [
+      (winner ? winner.name : "Commander") + " claims New Earth.",
+      loser ? loser.name + " is defeated." : "Opponent stands down.",
+      "Click Reset Game to play again.",
+    ],
+  };
 
-  if (tutorialExitBtn) {
-    tutorialExitBtn.addEventListener("click", endTutorialMode);
-  }
+  render();
 }
 
 function createDeity(ownerId, essence, baseKl) {
@@ -294,7 +234,7 @@ function createPlayer(id, name, essence, baseKl) {
     klCap: MAX_KL,
     godCharges: 0,
     godChargesSpent: 0,
-    veiledDeck: deckOverride || createFakeDeck(id),
+    veiledDeck: createFakeDeck(id),
     hand: [],
     shardRow: [],
     avatarFrontline: [],
@@ -326,38 +266,6 @@ let focusInfo = {
 };
 
 let guidedMode = true;
-
-function showTutorialMessage(message) {
-  const textEl = document.getElementById("tutorial-text");
-  if (!textEl) return;
-
-  textEl.textContent = message;
-}
-
-function hideTutorialMessage() {}
-
-function advanceTutorialStep() {
-  hideTutorialMessage();
-}
-
-function endTutorialMode() {
-  isTutorialMode = false;
-  hideTutorialMessage();
-}
-
-function runTutorialTrigger(triggerName, context = {}) {
-  if (!isTutorialMode) return;
-
-  const step = tutorialScript[tutorialStepIndex];
-  if (!step || step.trigger !== triggerName) return;
-
-  if (typeof step.turn === "number" && context.turn !== step.turn) return;
-  if (step.player && context.player !== step.player) return;
-  if (step.condition === "shardFirst" && context.cardType !== "Shard") return;
-
-  showTutorialMessage(step.message);
-  tutorialStepIndex += 1;
-}
 
 function activePlayer() {
   return game.activeIndex === -1 ? null : game.players[game.activeIndex];
@@ -478,10 +386,6 @@ function startNextTurn() {
     logLine(opp.name + " has 0 Essence. Game over.");
   }
 
-  if (isTutorialMode && previousPlayer === 0 && previousTurn > 0) {
-    runTutorialTrigger("onAfterTurn", { turn: previousTurn, player: "you" });
-  }
-
   focusInfo = {
     kind: "turn",
     title: "Turn " + game.turnNumber + " — " + p.name,
@@ -504,11 +408,6 @@ function startNextTurn() {
       "God Charges: " + p.godCharges + " / " + MAX_GOD_CHARGES + ".",
     ],
   };
-
-  runTutorialTrigger("onTurnStart", {
-    turn: game.turnNumber,
-    player: game.activeIndex === 0 ? "you" : "opponent",
-  });
 
   render();
 }
@@ -592,10 +491,6 @@ function playCardFromHand(cardId) {
     };
   }
 
-  if (isTutorialMode) {
-    runTutorialTrigger("onCardPlayed", { cardType: card.type });
-  }
-
   render();
 }
 
@@ -622,8 +517,6 @@ function attackWithAll() {
     render();
     return;
   }
-
-  runTutorialTrigger("onCombatAvailable", { player: "you" });
 
   let totalDamage = 0;
   attackers.forEach((a) => {
@@ -678,52 +571,7 @@ function dealOpeningHand(player, count) {
   }
 }
 
-function startNewGameWithTutorialDecks() {
-  const playerDeck = createTutorialDeck("P1");
-  const opponentDeck = createTutorialDeck("P2");
-
-  game.players = [
-    createPlayer("P1", "Player One", 23, 3, playerDeck),
-    createPlayer("P2", "AI Opponent", 21, 3, opponentDeck),
-  ];
-  game.activeIndex = -1;
-  game.turnNumber = 0;
-  game.currentPhase = "Ready";
-  game.log = [];
-
-  dealOpeningHand(game.players[0], 3);
-  dealOpeningHand(game.players[1], 2);
-
-  const oppShard = game.players[1].veiledDeck.shift();
-  if (oppShard) {
-    game.players[1].shardRow.push(oppShard);
-    recalcKl(game.players[1]);
-  }
-
-  focusInfo = {
-    kind: "board",
-    title: "Tutorial Ready",
-    lines: [
-      "Scripted decks are loaded. Use “Start Game” to begin Turn 1.",
-      "You’ll see guided steps for the first few turns.",
-    ],
-  };
-  logLine("Tutorial game initialized with scripted decks.");
-  render();
-}
-
-function startTutorialGame() {
-  isTutorialMode = true;
-  tutorialStepIndex = 0;
-  startNewGameWithTutorialDecks();
-  runTutorialTrigger("onTutorialStart");
-  runTutorialTrigger("onBoardReady");
-}
-
 function resetGame() {
-  isTutorialMode = false;
-  tutorialStepIndex = 0;
-  hideTutorialMessage();
   game.players = [
     createPlayer("P1", "Player One", 23, 3),
     createPlayer("P2", "Player Two", 21, 3),
@@ -1325,7 +1173,7 @@ function render() {
         "Guided: KL recalculated from Base KL + Shard Row (capped at " + MAX_KL + ").";
     } else {
       hint.textContent =
-        "Guided: Follow the phases left-to-right each turn, like a built-in tutorial track.";
+        "Guided: Follow the phases left-to-right each turn, like a built-in coaching track.";
     }
     tempoPanel.appendChild(hint);
   }
@@ -1486,17 +1334,15 @@ function render() {
   ui.app.appendChild(logBox);
 }
 
-cacheAppNode();
-bindShellEvents();
-renderProfileUI();
-renderCampaignUI();
-logLine("New game started.");
-render();
+function initializeApp() {
+  cacheAppNode();
+  bindShellEvents();
+  resetGame();
+  render();
+}
 
-document.addEventListener("DOMContentLoaded", () => {
-  const overlay = document.getElementById("tutorial-overlay");
-  if (overlay) {
-    overlay.style.display = "none";
-    overlay.style.pointerEvents = "none";
-  }
-});
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeApp);
+} else {
+  initializeApp();
+}
