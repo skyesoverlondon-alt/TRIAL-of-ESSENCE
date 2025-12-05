@@ -71,8 +71,9 @@ function bindShellEvents() {
   const startGame = () => {
     ui.loading?.classList.add("hidden");
     ui.board?.classList.remove("hidden");
+    campaignState.mode = "freeplay";
+    campaignState.activeNode = null;
     resetGame();
-    startNextTurn();
   };
 
   if (ui.start) {
@@ -82,27 +83,6 @@ function bindShellEvents() {
   if (ui.secondaryStart) {
     ui.secondaryStart.addEventListener("click", startGame);
   }
-}
-
-function handleVictory(winnerId) {
-  const winner = game.players.find((p) => p.id === winnerId);
-  const loser = game.players.find((p) => p.id !== winnerId);
-
-  game.currentPhase = "End";
-  game.activeIndex = -1;
-  logLine((winner ? winner.name : winnerId) + " wins the duel.");
-
-  focusInfo = {
-    kind: "victory",
-    title: "Victory",
-    lines: [
-      (winner ? winner.name : "Commander") + " claims New Earth.",
-      loser ? loser.name + " is defeated." : "Opponent stands down.",
-      "Click Reset Game to play again.",
-    ],
-  };
-
-  render();
 }
 
 function createDeity(ownerId, essence, baseKl) {
@@ -1334,15 +1314,7 @@ function render() {
   ui.app.appendChild(logBox);
 }
 
-function initializeApp() {
-  cacheAppNode();
-  bindShellEvents();
-  resetGame();
-  render();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initializeApp);
-} else {
-  initializeApp();
-}
+cacheAppNode();
+bindShellEvents();
+logLine("New game started.");
+render();
