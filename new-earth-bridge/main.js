@@ -64,12 +64,6 @@ const ui = {
   start: document.getElementById("start-button"),
 };
 
-let profile = ProfileManager.getProfile();
-let campaignState = {
-  activeNode: null,
-  mode: "freeplay",
-};
-
 let isTutorialMode = false;
 let tutorialStepIndex = 0;
 
@@ -133,135 +127,6 @@ const tutorialScript = [
   },
 ];
 
-function renderProfileUI() {
-  const nameInput = document.getElementById("profile-name");
-  const avatarSelect = document.getElementById("profile-avatar");
-  const currencyRow = document.getElementById("currency-row");
-  const alignmentBars = document.getElementById("alignment-bars");
-
-  if (nameInput) nameInput.value = profile.displayName || "";
-  if (avatarSelect) avatarSelect.value = profile.avatarId || "estifarr";
-
-  if (currencyRow) {
-    currencyRow.innerHTML = "";
-    const entries = [
-      { label: "Crown Shards", value: profile.currencies.crownShards },
-      { label: "Arcane Keys", value: profile.currencies.arcaneKeys },
-      { label: "Essence Tokens", value: profile.currencies.essenceTokens },
-    ];
-    entries.forEach((c) => {
-      const pill = document.createElement("div");
-      pill.className = "currency-pill";
-      pill.textContent = `${c.label}: ${c.value}`;
-      currencyRow.appendChild(pill);
-    });
-  }
-
-  if (alignmentBars) {
-    alignmentBars.innerHTML = "";
-    Object.entries(profile.shardAlignment).forEach(([key, val]) => {
-      const row = document.createElement("div");
-      row.className = "alignment-row";
-      const label = document.createElement("div");
-      label.textContent = key.toUpperCase();
-      const meter = document.createElement("div");
-      meter.className = "alignment-meter";
-      const fill = document.createElement("div");
-      fill.className = "alignment-fill";
-      const ratio = Math.min(1, Math.max(0, val / 100));
-      fill.style.transform = `scaleX(${ratio})`;
-      meter.appendChild(fill);
-      const value = document.createElement("div");
-      value.textContent = val;
-      row.appendChild(label);
-      row.appendChild(meter);
-      row.appendChild(value);
-      alignmentBars.appendChild(row);
-    });
-  }
-}
-
-function renderCampaignUI() {
-  const wrapper = document.getElementById("campaign-acts");
-  if (!wrapper) return;
-  wrapper.innerHTML = "";
-
-  CAMPAIGN_ACTS.forEach((act) => {
-    if (act.id > (profile.campaignProgress.actUnlocked || 1)) return;
-    const card = document.createElement("div");
-    card.className = "act-card";
-
-    const title = document.createElement("div");
-    title.className = "act-title";
-    title.textContent = act.title;
-    card.appendChild(title);
-
-    const summary = document.createElement("div");
-    summary.className = "node-desc";
-    summary.textContent = act.summary;
-    card.appendChild(summary);
-
-    const list = document.createElement("div");
-    list.className = "node-list";
-
-    act.nodes.forEach((node) => {
-      const nodeCard = document.createElement("div");
-      nodeCard.className = "node-card";
-      const titleRow = document.createElement("div");
-      titleRow.className = "node-title";
-      const span = document.createElement("span");
-      span.textContent = node.title;
-      const status = document.createElement("span");
-      const complete = profile.campaignProgress.completedNodes.includes(node.id);
-      status.textContent = complete ? "Completed" : `Stars ${node.stars}`;
-      status.style.color = complete ? "#22d3ee" : "#fef08a";
-      titleRow.appendChild(span);
-      titleRow.appendChild(status);
-      nodeCard.appendChild(titleRow);
-
-      const desc = document.createElement("div");
-      desc.className = "node-desc";
-      desc.textContent = node.desc;
-      nodeCard.appendChild(desc);
-
-      const rewards = document.createElement("div");
-      rewards.className = "node-rewards";
-      Object.entries(node.rewards).forEach(([k, v]) => {
-        const pill = document.createElement("div");
-        pill.className = "currency-pill";
-        pill.textContent = `${k}: ${Array.isArray(v) ? v.join(', ') : v}`;
-        rewards.appendChild(pill);
-      });
-      nodeCard.appendChild(rewards);
-
-      const actions = document.createElement("div");
-      actions.className = "node-actions";
-      const playBtn = document.createElement("button");
-      playBtn.textContent = "Play Node";
-      playBtn.onclick = () => startCampaignNode(node, act);
-      actions.appendChild(playBtn);
-      const scoutBtn = document.createElement("button");
-      scoutBtn.className = "ghost";
-      scoutBtn.textContent = "Brief";
-      scoutBtn.onclick = () => {
-        focusInfo = {
-          kind: "mission",
-          title: node.title,
-          lines: [node.desc, "Rewards: " + Object.keys(node.rewards).join(", ")],
-        };
-        render();
-      };
-      actions.appendChild(scoutBtn);
-      nodeCard.appendChild(actions);
-
-      list.appendChild(nodeCard);
-    });
-
-    card.appendChild(list);
-    wrapper.appendChild(card);
-  });
-}
-
 function cacheAppNode() {
   ui.app = document.getElementById("app");
 }
@@ -278,35 +143,6 @@ function bindShellEvents() {
   }
 
   initTutorialUI();
-
-  const nameInput = document.getElementById("profile-name");
-  const avatarSelect = document.getElementById("profile-avatar");
-  const resetBtn = document.getElementById("reset-profile");
-
-  if (nameInput) {
-    nameInput.addEventListener("change", (e) => {
-      profile = ProfileManager.update({ ...profile, displayName: e.target.value });
-      renderProfileUI();
-    });
-  }
-
-  if (avatarSelect) {
-    avatarSelect.addEventListener("change", (e) => {
-      profile = ProfileManager.update({ ...profile, avatarId: e.target.value });
-      renderProfileUI();
-    });
-  }
-
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
-      profile = ProfileManager.reset();
-      renderProfileUI();
-      renderCampaignUI();
-    });
-  }
-
-  const rewardClose = document.getElementById("reward-close");
-  if (rewardClose) rewardClose.addEventListener("click", hideRewardPanel);
 }
 
 function initTutorialUI() {
@@ -329,35 +165,6 @@ function initTutorialUI() {
   if (tutorialExitBtn) {
     tutorialExitBtn.addEventListener("click", endTutorialMode);
   }
-}
-
-function showRewardPanel(text) {
-  const overlay = document.getElementById("reward-overlay");
-  const textEl = document.getElementById("reward-text");
-  if (!overlay || !textEl) return;
-  textEl.textContent = text;
-  overlay.classList.remove("tutorial-hidden");
-}
-
-function hideRewardPanel() {
-  const overlay = document.getElementById("reward-overlay");
-  if (overlay) overlay.classList.add("tutorial-hidden");
-}
-
-function startCampaignNode(node, act) {
-  campaignState.activeNode = { ...node, actId: act.id };
-  campaignState.mode = "campaign";
-  ui.loading?.classList.add("hidden");
-  ui.board?.classList.remove("hidden");
-  resetGame();
-  game.players[0].name = profile.displayName || "Frontliner";
-  game.players[1].name = act.title;
-  focusInfo = {
-    kind: "mission",
-    title: node.title,
-    lines: [node.desc, "Rewards ready upon victory."],
-  };
-  render();
 }
 
 function createDeity(ownerId, essence, baseKl) {
@@ -392,13 +199,21 @@ function createAvatar(ownerId, index, name, power, guard, klCost) {
     power,
     guard,
     tapped: false,
+    image: SAMPLE_ART[index % SAMPLE_ART.length],
   };
 }
+
+const SAMPLE_ART = [
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=60",
+  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=600&q=60",
+  "https://images.unsplash.com/photo-1517816428104-797678c7cf0d?auto=format&fit=crop&w=600&q=60",
+  "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=600&q=60",
+];
 
 function createFakeDeck(ownerId) {
   const deck = [];
   for (let i = 0; i < 4; i++) {
-    deck.push(createShard(ownerId, i, 1));
+    deck.push({ ...createShard(ownerId, i, 1), image: SAMPLE_ART[(i + 1) % SAMPLE_ART.length] });
   }
   deck.push(createAvatar(ownerId, 0, "Glow Vanguard", 2, 2, 2));
   deck.push(createAvatar(ownerId, 1, "Solar Aegis Knight", 3, 3, 3));
@@ -411,18 +226,65 @@ function createFakeDeck(ownerId) {
   return deck;
 }
 
-function createTutorialDeck(ownerId) {
-  return [
-    createShard(ownerId, 0, 1),
-    createShard(ownerId, 1, 1),
-    createAvatar(ownerId, 0, ownerId === "P1" ? "Solar Initiate" : "Nullblade Acolyte", 2, 2, 2),
-    createShard(ownerId, 2, 1),
-    createAvatar(ownerId, 1, ownerId === "P1" ? "Crownflame Herald" : "Voidmarked Raider", 3, 2, 3),
-    createAvatar(ownerId, 2, ownerId === "P1" ? "Aegis Warden" : "Shroud Stalker", 4, 3, 4),
-  ];
+function buildCardView(card, { canPlay = true, onClick } = {}) {
+  const cardEl = document.createElement("div");
+  cardEl.className = "card-frame";
+  if (!canPlay) cardEl.classList.add("card-disabled");
+
+  cardEl.innerHTML = `
+    <div class="card-art-wrapper">
+      <img class="card-art" src="${card.image || SAMPLE_ART[0]}" alt="${card.name}" />
+    </div>
+    <div class="card-overlay">
+      <div class="card-header-row">
+        <span class="card-title">${card.name}</span>
+        <span class="card-cost">${card.klCost ?? card.cost ?? 0}</span>
+      </div>
+      <div class="card-type-row">
+        <span class="card-type">${card.type || ""}</span>
+      </div>
+      <div class="card-stats-row">${card.power !== undefined ? `${card.power} / ${card.guard ?? card.toughness ?? 0}` : ""}</div>
+    </div>
+  `;
+
+  cardEl.addEventListener("mouseenter", () => showDetailOverlay(card));
+  cardEl.addEventListener("mouseleave", hideDetailOverlay);
+  cardEl.addEventListener("click", () => {
+    if (onClick) onClick();
+    showDetailOverlay(card);
+  });
+
+  return cardEl;
 }
 
-function createPlayer(id, name, essence, baseKl, deckOverride) {
+function showDetailOverlay(card) {
+  const overlay = document.getElementById("card-detail-overlay");
+  if (!overlay) return;
+  overlay.innerHTML = `
+    <div class="card-detail-content">
+      <div class="card-header-row">
+        <span class="card-title">${card.name}</span>
+        <span class="card-cost">${card.klCost ?? card.cost ?? 0} KL</span>
+      </div>
+      <div class="card-art-wrapper">
+        <img class="card-art" src="${card.image || SAMPLE_ART[0]}" alt="${card.name}" />
+      </div>
+      <div class="card-type-row">${card.type || ""}</div>
+      <div class="card-stats-row">${card.power !== undefined ? `${card.power} / ${card.guard ?? card.toughness ?? 0}` : ""}</div>
+    </div>
+  `;
+  overlay.classList.remove("card-detail-hidden");
+  overlay.onclick = hideDetailOverlay;
+}
+
+function hideDetailOverlay() {
+  const overlay = document.getElementById("card-detail-overlay");
+  if (!overlay) return;
+  overlay.classList.add("card-detail-hidden");
+  overlay.innerHTML = "";
+}
+
+function createPlayer(id, name, essence, baseKl) {
   const deity = createDeity(id, essence, baseKl);
   return {
     id,
@@ -525,6 +387,7 @@ function drawCard(player) {
   if (player.veiledDeck.length === 0) return null;
   const card = player.veiledDeck.shift();
   player.hand.push(card);
+  card._justDrawn = true;
   return card;
 }
 
@@ -694,6 +557,7 @@ function playCardFromHand(cardId) {
   p.hand.splice(idx, 1);
 
   if (card.type === "Shard") {
+    card._justPlayed = true;
     p.shardRow.push(card);
     logLine(p.name + " played Shard: " + card.name + " (KL -" + cost + ").");
     recalcKl(p);
@@ -711,6 +575,7 @@ function playCardFromHand(cardId) {
     };
   } else if (card.type === "Avatar") {
     card.tapped = false;
+    card._justPlayed = true;
     p.avatarFrontline.push(card);
     logLine(p.name + " played Avatar: " + card.name + " (KL -" + cost + ").");
     focusInfo = {
@@ -815,38 +680,6 @@ function attackWithAll() {
   render();
 }
 
-function handleVictory(winnerId) {
-  if (campaignState.mode === "campaign" && campaignState.activeNode && winnerId === "P1") {
-    const node = campaignState.activeNode;
-    profile = ProfileManager.recordCompletion(node.id, node.stars || 1, node.rewards || {});
-    const actData = CAMPAIGN_ACTS.find((a) => a.id === node.actId);
-    if (actData && profile.campaignProgress.actUnlocked < actData.id + 1) {
-      profile = ProfileManager.update({
-        ...profile,
-        campaignProgress: {
-          ...profile.campaignProgress,
-          actUnlocked: actData.id + 1,
-        },
-      });
-    }
-    profile = ProfileManager.update((p) => ({
-      ...p,
-      shardAlignment: {
-        ...p.shardAlignment,
-        estifarr: (p.shardAlignment.estifarr || 0) + 5,
-      },
-    }));
-    campaignState.activeNode = null;
-    campaignState.mode = "freeplay";
-    renderProfileUI();
-    renderCampaignUI();
-    const rewardList = Object.entries(node.rewards || {})
-      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-      .join(" • ");
-    showRewardPanel(`Victory! Rewards claimed: ${rewardList}`);
-  }
-}
-
 function dealOpeningHand(player, count) {
   for (let i = 0; i < count; i++) {
     drawCard(player);
@@ -890,8 +723,6 @@ function startNewGameWithTutorialDecks() {
 function startTutorialGame() {
   isTutorialMode = true;
   tutorialStepIndex = 0;
-  campaignState.mode = "tutorial";
-  campaignState.activeNode = null;
   startNewGameWithTutorialDecks();
   runTutorialTrigger("onTutorialStart");
   runTutorialTrigger("onBoardReady");
@@ -901,10 +732,6 @@ function resetGame() {
   isTutorialMode = false;
   tutorialStepIndex = 0;
   hideTutorialMessage();
-  if (campaignState.mode !== "campaign") {
-    campaignState.activeNode = null;
-    campaignState.mode = "freeplay";
-  }
   game.players = [
     createPlayer("P1", "Player One", 23, 3),
     createPlayer("P2", "Player Two", 21, 3),
@@ -1089,6 +916,14 @@ function buildPlayerSection(player, index) {
 
   const veiledBody = document.createElement("div");
   veiledBody.className = "zone-body";
+  const veiledVisual = document.createElement("div");
+  veiledVisual.className = "deck-visual";
+  veiledVisual.innerHTML = `
+    <div class="deck-stack">
+      <div class="deck-card back"></div>
+      <div class="deck-card front"></div>
+    </div>
+  `;
   const veiledCount = document.createElement("div");
   veiledCount.className = "zone-count-badge";
   veiledCount.textContent = player.veiledDeck.length + " card(s)";
@@ -1096,6 +931,7 @@ function buildPlayerSection(player, index) {
   veiledNote.className = "zone-note";
   veiledNote.textContent = "This mirrors the Veiled Deck stack on your physical mat.";
 
+  veiledBody.appendChild(veiledVisual);
   veiledBody.appendChild(veiledCount);
   veiledBody.appendChild(veiledNote);
   veiledCard.appendChild(veiledTitle);
@@ -1273,14 +1109,22 @@ function renderBattlefield(container, topPlayer, bottomPlayer) {
     slot.className = "battle-slot";
     if (card) {
       slot.classList.add("has-card");
-      slot.textContent =
-        card.name +
-        " (" +
-        (card.power || 0) +
-        "/" +
-        (card.guard || 0) +
-        ")" +
-        (card.tapped ? " [T]" : "");
+      slot.textContent = "";
+      const cardView = buildCardView(card, { canPlay: false });
+      if (card._justPlayed) {
+        requestAnimationFrame(() => {
+          cardView.classList.add("card-anim-play");
+          cardView.addEventListener(
+            "animationend",
+            () => {
+              cardView.classList.remove("card-anim-play");
+              card._justPlayed = false;
+            },
+            { once: true }
+          );
+        });
+      }
+      slot.appendChild(cardView);
       slot.onclick = function () {
         setFocus("card", "Avatar – " + card.name + " (P2)", [
           "Owner: " + topPlayer.name + " (P2).",
@@ -1316,14 +1160,22 @@ function renderBattlefield(container, topPlayer, bottomPlayer) {
     slot.className = "battle-slot";
     if (card) {
       slot.classList.add("has-card");
-      slot.textContent =
-        card.name +
-        " (" +
-        (card.power || 0) +
-        "/" +
-        (card.guard || 0) +
-        ")" +
-        (card.tapped ? " [T]" : "");
+      slot.textContent = "";
+      const cardView = buildCardView(card, { canPlay: false });
+      if (card._justPlayed) {
+        requestAnimationFrame(() => {
+          cardView.classList.add("card-anim-play");
+          cardView.addEventListener(
+            "animationend",
+            () => {
+              cardView.classList.remove("card-anim-play");
+              card._justPlayed = false;
+            },
+            { once: true }
+          );
+        });
+      }
+      slot.appendChild(cardView);
       slot.onclick = function () {
         setFocus("card", "Avatar – " + card.name + " (P1)", [
           "Owner: " + bottomPlayer.name + " (P1).",
@@ -1547,22 +1399,30 @@ function render() {
       handRow.appendChild(empty);
     } else {
       pActive.hand.forEach((card) => {
-        const btn = document.createElement("button");
-        btn.className = "card-button";
-        btn.textContent =
-          card.name +
-          " [" +
-          card.type +
-          " • KL " +
-          (card.klCost || 0) +
-          "]";
         const canAfford = pActive.currentKl >= (card.klCost || 0);
-        btn.disabled = !canAfford;
-        btn.title = card.name + " – KL cost " + (card.klCost || 0) + ". Click to play.";
-        btn.onclick = function () {
-          playCardFromHand(card.id);
-        };
-        handRow.appendChild(btn);
+        const cardView = buildCardView(card, {
+          canPlay: canAfford,
+          onClick: () => {
+            if (canAfford) playCardFromHand(card.id);
+          },
+        });
+        cardView.classList.add("hand-card");
+
+        requestAnimationFrame(() => {
+          if (card._justDrawn) {
+            cardView.classList.add("card-anim-draw");
+            cardView.addEventListener(
+              "animationend",
+              () => {
+                cardView.classList.remove("card-anim-draw");
+                card._justDrawn = false;
+              },
+              { once: true }
+            );
+          }
+        });
+
+        handRow.appendChild(cardView);
       });
     }
   }
