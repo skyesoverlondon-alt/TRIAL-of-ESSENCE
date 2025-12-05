@@ -152,9 +152,7 @@ function initTutorialUI() {
 
   if (playTutorialBtn) {
     playTutorialBtn.addEventListener("click", () => {
-      ui.loading?.classList.add("hidden");
-      ui.board?.classList.remove("hidden");
-      startTutorialGame();
+      ui.start?.click();
     });
   }
 
@@ -330,19 +328,13 @@ let focusInfo = {
 let guidedMode = true;
 
 function showTutorialMessage(message) {
-  const overlay = document.getElementById("tutorial-overlay");
   const textEl = document.getElementById("tutorial-text");
-  if (!overlay || !textEl) return;
+  if (!textEl) return;
 
   textEl.textContent = message;
-  overlay.classList.remove("tutorial-hidden");
 }
 
-function hideTutorialMessage() {
-  const overlay = document.getElementById("tutorial-overlay");
-  if (!overlay) return;
-  overlay.classList.add("tutorial-hidden");
-}
+function hideTutorialMessage() {}
 
 function advanceTutorialStep() {
   hideTutorialMessage();
@@ -1500,3 +1492,11 @@ renderProfileUI();
 renderCampaignUI();
 logLine("New game started.");
 render();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("tutorial-overlay");
+  if (overlay) {
+    overlay.style.display = "none";
+    overlay.style.pointerEvents = "none";
+  }
+});
